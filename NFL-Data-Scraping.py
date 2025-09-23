@@ -8,3 +8,5 @@ current_year -= 1
 url = f"https://www.pro-football-reference.com/years/{current_year}/games.htm"
 
 tables = pd.read_html(url)
+
+schedule = tables[0]

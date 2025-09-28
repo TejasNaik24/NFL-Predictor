@@ -46,4 +46,5 @@ final_schedule = pd.concat([schedule, opponent_schedule], ignore_index=True)
 # Cleaning the index values
 final_schedule.reset_index(drop=True, inplace=True)
 
-print(final_schedule)
+
+final_schedule.to_csv(f"nfl_schedule_{current_year}.csv", index=False)

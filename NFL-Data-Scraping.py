@@ -32,4 +32,5 @@ box_score_col = 'Unnamed: 7' if 'Unnamed: 7' in schedule.columns else 'BoxScore'
 # Drop the boxscore column
 schedule = schedule.drop(columns=[box_score_col])
 
-
+# Result for the team listed in 'Team' column is always a win
+schedule['Result'] = 'Win'

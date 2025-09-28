@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 from datetime import datetime
 
 current_year = datetime.now().year
@@ -20,7 +21,9 @@ schedule = schedule[schedule['Week'] != 'Week']
 home_away_col = 'Unnamed: 5' if 'Unnamed: 5' in schedule.columns else 'Location'
 
 # Keeping the columns we care about
-schedule = schedule[['Winner/tie', 'Loser/tie', 'PtsW', 'PtsL', home_away_col]]
+schedule = schedule.rename(columns={home_away_col: 'Home/Away'})
 
-# Renaming the columns
-schedule.columns = ['Team', 'Opponent', 'Team_pts', 'Opponent_pts', 'Home/Away']
+# Fixing Home/Away: blank means home team, '@' means away team
+schedule['Home/Away'] = schedule['Home/Away'].apply(lambda x: 'Away' if x == '@' else 'Home')
+
+

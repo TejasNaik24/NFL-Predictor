@@ -46,5 +46,18 @@ final_schedule = pd.concat([schedule, opponent_schedule], ignore_index=True)
 # Cleaning the index values
 final_schedule.reset_index(drop=True, inplace=True)
 
+folder_name = "data_files"
 
-final_schedule.to_csv(f"nfl_schedule_{current_year}.csv", index=False)
+# Checking if folder exists
+if not os.path.exists(folder_name):
+    print("data_files folder not found creating one and exporting csv's there...")
+    os.makedirs(folder_name)
+else:
+    print("found data_files folder exporting csv's there...")
+
+# File path
+file_path = os.path.join(folder_name, f"nfl_schedule_{current_year}.csv")
+
+# exporting as csv file
+final_schedule.to_csv(file_path, index=False)
+

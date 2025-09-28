@@ -26,4 +26,10 @@ schedule = schedule.rename(columns={home_away_col: 'Home/Away'})
 # Fixing Home/Away: blank means home team, '@' means away team
 schedule['Home/Away'] = schedule['Home/Away'].apply(lambda x: 'Away' if x == '@' else 'Home')
 
+# Identifying the boxscore column
+box_score_col = 'Unnamed: 7' if 'Unnamed: 7' in schedule.columns else 'BoxScore'
+
+# Drop the boxscore column
+schedule = schedule.drop(columns=[box_score_col])
+
 

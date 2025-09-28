@@ -34,3 +34,16 @@ schedule = schedule.drop(columns=[box_score_col])
 
 # Result for the team listed in 'Team' column is always a win
 schedule['Result'] = 'Win'
+
+# Creating the opponent view
+opponent_schedule = schedule.copy()
+opponent_schedule.rename(columns={'Team':'Opponent', 'Opponent':'Team', 'Team_pts':'Opponent_pts', 'Opponent_pts':'Team_pts'}, inplace=True)
+opponent_schedule['Result'] = 'Loss'
+
+# Combine both to get one row per team per game
+final_schedule = pd.concat([schedule, opponent_schedule], ignore_index=True)
+
+# Cleaning the index values
+final_schedule.reset_index(drop=True, inplace=True)
+
+print(final_schedule)

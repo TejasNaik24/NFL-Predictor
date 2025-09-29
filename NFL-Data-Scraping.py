@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import time
 from datetime import datetime
 
 folder_name = "data_files"
@@ -59,8 +60,30 @@ def get_schedule(year):
     # Export CSV
     final_schedule.to_csv(file_path, index=False)
 
+    games_count = len(final_schedule) // 2
+    print(f"-> Success! Got all games for {year} season. Total games scraped: {len(final_schedule) // 2}")
 
+    return games_count
+
+
+# Figure out the most recent completed NFL season (handles Jan/Feb edge case)
 current_year = datetime.now().year
+current_month = datetime.now().month
 
-for year in range(current_year - 10, current_year + 1):
-    get_schedule(year)
+if current_month in [1, 2]:
+    current_season = current_year - 1
+else:
+    current_season = current_year
+
+years = list(range(current_season - 10, current_season))
+total_games = 0  # initialize before the loop
+
+for i, year in enumerate(years):
+    games_this_year = get_schedule(year)
+    total_games += games_this_year
+
+    if i < len(years) - 1:
+        time.sleep(3)
+
+print(f"Successfully collected a total of {total_games} NFL games")
+print(f"All csv files have been saved to '{folder_name}'")

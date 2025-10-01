@@ -74,11 +74,7 @@ def get_schedule(year):
 # Figure out the most recent completed NFL season (handles Jan/Feb edge case)
 current_year = datetime.now().year
 current_month = datetime.now().month
-
-if current_month in [1, 2]:
-    current_season = current_year - 1
-else:
-    current_season = current_year
+current_season = current_year - 1 if current_month in [1, 2] else current_year
 
 years = list(range(current_season - 10, current_season))
 total_games = 0  # initialize before the loop

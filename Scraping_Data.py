@@ -17,7 +17,12 @@ def get_schedule(year):
     url = f"https://www.pro-football-reference.com/years/{year}/games.htm"
 
     # Read all tables from the page
-    tables = pd.read_html(url)
+
+    try:
+        tables = pd.read_html(url)
+    except Exception as e:
+        print(f"-> Error getting data for {year}, skipping this year. ({e})")
+        return 0
 
     # Main schedule table
     schedule = tables[0]

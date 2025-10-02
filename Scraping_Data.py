@@ -4,6 +4,16 @@ import sys
 import time
 from datetime import datetime
 
+title = "\nDATA SCRAPING FOR NFL PREDICTOR"
+subtitle = "\nScraps Data Off The Pro-Football-Reference Website"
+line = "=" * (len(subtitle) + 10)
+
+print("\n" + line)
+print(title)
+print(subtitle)
+print("\n" + line + "\n")
+
+
 folder_name = "data_files"
 
 if not os.path.exists(folder_name):

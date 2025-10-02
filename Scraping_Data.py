@@ -72,19 +72,19 @@ while collected_years < target_years:
         collected_years += 1
         year -= 1
         failures = 0
-        time.sleep(3)
+
+        if collected_years < target_years:
+            time.sleep(3)
+
     else:
         failures += 1
         print(f"-> Failed to get data for {year}, trying previous year...")
         year -= 1
-        time.sleep(2)
 
         if failures >= max_failures:
             print("\n-> Too many consecutive failures. Stopping program.")
             print("-> Please check your code or if the website structure has changed.")
             sys.exit(1)
 
-print(f"\nSuccessfully collected {collected_years} seasons of NFL data.")
-print(f"Total games scraped: {total_games}")
-print(f"All csv files saved to '{folder_name}'")
-
+        if collected_years < target_years:
+            time.sleep(2)

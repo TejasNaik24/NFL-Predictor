@@ -12,10 +12,9 @@ def merge_data(folder_path="data_files"):
     for f in files:
         year = os.path.basename(f).split('.')[0]
         temp_df = pd.read_csv(f)
-        temp_df['year'] = year
+        temp_df['season'] = int(''.join(filter(str.isdigit, year)))
         dfs.append(temp_df)
     df = pd.concat(dfs, ignore_index=True)
-    df['year'] = df['year'].str.extract('(\d+)').astype(int)
     return df
 
 df = merge_data()

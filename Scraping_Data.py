@@ -22,7 +22,6 @@ if not os.path.exists(folder_name):
 else:
     print("found data_files folder, exporting csv's there...")
 
-# Determine current season
 current_year = datetime.now().year
 current_month = datetime.now().month
 current_season = current_year - 1 if current_month in [1, 2] else current_year
@@ -34,18 +33,14 @@ failures = 0
 year = current_season - 1
 scraping_years = []
 
-# Loop over seasons to collect data
 while collected_years < target_years:
     try:
-        # Load NFLVERSE team stats for this year
         df_year = nfl.load_team_stats(seasons=[year]).to_pandas()
         df_year = df_year.drop(columns=['team'], errors='ignore')
 
-        # Save CSV per year
         file_path = os.path.join(folder_name, f"nflverse_stats_{year}.csv")
         df_year.to_csv(file_path, index=False)
 
-        # Match the print style of your old PFR scraper
         print(f"-> Success! Got all games for {year} season. Total games scraped: {len(df_year)}")
 
         scraping_years.append(year)

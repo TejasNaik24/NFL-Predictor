@@ -18,3 +18,12 @@ def merge_data(folder_path="data_files"):
     return df
 
 df = merge_data()
+
+playoff_seasons = df.loc[df['season_type'].str.lower() == 'post', 'season'].unique()
+
+df['made_playoffs'] = df['season'].apply(lambda s: 1 if s in playoff_seasons else 0)
+
+X = df.drop(columns=['made_playoffs'])
+y = df['made_playoffs']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, test_size=0.2)

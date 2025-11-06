@@ -36,7 +36,6 @@ scraping_years = []
 while collected_years < target_years:
     try:
         df_year = nfl.load_team_stats(seasons=[year]).to_pandas()
-        df_year = df_year.drop(columns=['team'], errors='ignore')
 
         file_path = os.path.join(folder_name, f"nflverse_stats_{year}.csv")
         df_year.to_csv(file_path, index=False)

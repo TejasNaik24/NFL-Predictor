@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # ---- Centered Title ----
-col1, col2, col3 = st.columns([1, 2, 1])
+col1, col2, col3 = st.columns([1, 2, 0.2])
 with col2:
     st.title("NFL Predictor")
 
@@ -19,6 +19,6 @@ with col2:
     st.image("static/nfl.png", width=220)
 
 # ---- Centered Button ----
-col1, col2, col3 = st.columns([1, 0.5, 1])
+col1, col2, col3 = st.columns([1, 0.3, 1])
 with col2:
-    st.button("Predictor")
+    st.button("Predict")

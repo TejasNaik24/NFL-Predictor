@@ -108,7 +108,7 @@ if st.session_state.flow == "predicting":
     cols = st.columns([1, 1, 1, 0.9, 1, 1, 1])
 
     # Determine if we're in manual mode (dropdowns) or AutoML mode (buttons)
-    manual_mode = (st.session_state.control_mode == "Choose Team")
+    manual_mode = (st.session_state.control_mode == "Choose Teams")
 
     # ---- AFC Wild / Bye ----
     with cols[0]:
@@ -374,16 +374,16 @@ if st.session_state.flow == "predicting":
                 show_nfc_conf2()
 
     # ---- CONTROLS SECTION (wider, centered below) ----
-    control_cols = st.columns([2.3, 2.4, 2.3])
+    control_cols = st.columns([2.8, 5, 3.3])
     
     with control_cols[1]:
         with st.container(border=True):
-            c1, c2, c3 = st.columns([1, 1, 1])
+            c1, c2, c3 = st.columns([1.3, 1, 1])
             with c2:
                 st.markdown("### Controls")
             
             # Simple toggle between modes - centered with columns
-            r1, r2, r3 = st.columns([0.8, 2.4, 0.8])
+            r1, r2, r3 = st.columns([1.4, 2.4, 0.8])
             with r2:
                 mode = st.radio(
                     "Control Mode",

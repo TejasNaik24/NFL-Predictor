@@ -116,29 +116,67 @@ if st.session_state.flow == "predicting":
         if manual_mode:
             st.selectbox("AFC Bye", afc_teams, key="afc_bye", label_visibility="collapsed")
         else:
-            st.button("AFC Bye", key="afc_bye_btn")
+            @st.dialog("AFC Bye - Analysis")
+            def show_afc_bye():
+                st.write("Placeholder")
+            
+            if st.button("AFC Bye", key="afc_bye_btn"):
+                show_afc_bye()
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 1", afc_teams, key="afc_wild1", label_visibility="collapsed")
             st.selectbox("Wild Card 2", afc_teams, key="afc_wild2", label_visibility="collapsed")
         else:
-            st.button("AFC_Wild1", key="afc_wild1_btn")
-            st.button("AFC_Wild2", key="afc_wild2_btn")
+            @st.dialog("AFC Wild 1 - Analysis")
+            def show_afc_wild1():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Wild1", key="afc_wild1_btn"):
+                show_afc_wild1()
+            
+            @st.dialog("AFC Wild 2 - Analysis")
+            def show_afc_wild2():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Wild2", key="afc_wild2_btn"):
+                show_afc_wild2()
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 3", afc_teams, key="afc_wild3", label_visibility="collapsed")
             st.selectbox("Wild Card 4", afc_teams, key="afc_wild4", label_visibility="collapsed")
         else:
-            st.button("AFC_Div1", key="afc_div1_btn")
-            st.button("AFC_Div2", key="afc_div2_btn")
+            @st.dialog("AFC Div 1 - Analysis")
+            def show_afc_div1():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Div1", key="afc_div1_btn"):
+                show_afc_div1()
+            
+            @st.dialog("AFC Div 2 - Analysis")
+            def show_afc_div2():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Div2", key="afc_div2_btn"):
+                show_afc_div2()
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 5", afc_teams, key="afc_wild5", label_visibility="collapsed")
             st.selectbox("Wild Card 6", afc_teams, key="afc_wild6", label_visibility="collapsed")
         else:
-            st.button("AFC_Conf1", key="afc_conf1_btn")
-            st.button("AFC_Conf2", key="afc_conf2_btn")
+            @st.dialog("AFC Conf 1 - Analysis")
+            def show_afc_conf1():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Conf1", key="afc_conf1_btn"):
+                show_afc_conf1()
+            
+            @st.dialog("AFC Conf 2 - Analysis")
+            def show_afc_conf2():
+                st.write("Placeholder")
+            
+            if st.button("AFC_Conf2", key="afc_conf2_btn"):
+                show_afc_conf2()
 
     # ---- AFC Divisional ----
     with cols[1]:
@@ -273,29 +311,67 @@ if st.session_state.flow == "predicting":
         if manual_mode:
             st.selectbox("NFC Bye", nfc_teams, key="nfc_bye", label_visibility="collapsed")
         else:
-            st.button("NFC Bye", key="nfc_bye_btn")
+            @st.dialog("NFC Bye - Analysis")
+            def show_nfc_bye():
+                st.write("Placeholder")
+            
+            if st.button("NFC Bye", key="nfc_bye_btn"):
+                show_nfc_bye()
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 1", nfc_teams, key="nfc_wild1", label_visibility="collapsed")
             st.selectbox("Wild Card 2", nfc_teams, key="nfc_wild2", label_visibility="collapsed")
         else:
-            st.button("NFC_Wild1", key="nfc_wild1_btn")
-            st.button("NFC_Wild2", key="nfc_wild2_btn")
+            @st.dialog("NFC Wild 1 - Analysis")
+            def show_nfc_wild1():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Wild1", key="nfc_wild1_btn"):
+                show_nfc_wild1()
+            
+            @st.dialog("NFC Wild 2 - Analysis")
+            def show_nfc_wild2():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Wild2", key="nfc_wild2_btn"):
+                show_nfc_wild2()
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 3", nfc_teams, key="nfc_wild3", label_visibility="collapsed")
             st.selectbox("Wild Card 4", nfc_teams, key="nfc_wild4", label_visibility="collapsed")
         else:
-            st.button("NFC_Div1", key="nfc_div1_btn")
-            st.button("NFC_Div2", key="nfc_div2_btn")
+            @st.dialog("NFC Div 1 - Analysis")
+            def show_nfc_div1():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Div1", key="nfc_div1_btn"):
+                show_nfc_div1()
+            
+            @st.dialog("NFC Div 2 - Analysis")
+            def show_nfc_div2():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Div2", key="nfc_div2_btn"):
+                show_nfc_div2()
         vspace(1)
         if manual_mode:
             st.selectbox("Wild Card 5", nfc_teams, key="nfc_wild5", label_visibility="collapsed")
             st.selectbox("Wild Card 6", nfc_teams, key="nfc_wild6", label_visibility="collapsed")
         else:
-            st.button("NFC_Conf1", key="nfc_conf1_btn")
-            st.button("NFC_Conf2", key="nfc_conf2_btn")
+            @st.dialog("NFC Conf 1 - Analysis")
+            def show_nfc_conf1():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Conf1", key="nfc_conf1_btn"):
+                show_nfc_conf1()
+            
+            @st.dialog("NFC Conf 2 - Analysis")
+            def show_nfc_conf2():
+                st.write("Placeholder")
+            
+            if st.button("NFC_Conf2", key="nfc_conf2_btn"):
+                show_nfc_conf2()
 
     # ---- CONTROLS SECTION (wider, centered below) ----
     control_cols = st.columns([2.3, 2.4, 2.3])

@@ -78,8 +78,6 @@ if st.session_state.clicked and st.session_state.flow is None:
             s0.markdown(f"**Start:** {start_year}")
             s1.markdown(f"**End:** {latest_year}")
 
-            st.success(f"{start_year} → {latest_year}")
-
             t_l, t_c, t_r = st.columns([1, 1, 1])
             with t_c:
                 if st.button("Train Model Now"):
@@ -87,6 +85,3 @@ if st.session_state.clicked and st.session_state.flow is None:
                     st.session_state.flow = "training"
                     st.rerun()
 
-# ---- POST-CLICK STATES: intentionally show nothing (UI fully hidden except title) ----
-# when st.session_state.flow is "predicting" or "training", we intentionally render nothing here
-# (keep this area empty so the only visible element is the title)

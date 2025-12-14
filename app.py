@@ -85,6 +85,24 @@ if st.session_state.clicked and st.session_state.flow is None:
 # ---- PREDICTION / BRACKET UI ----
 if st.session_state.flow == "predicting":
 
+    # NFL Teams
+    afc_teams = [
+        "-- Choose a team --",
+        "Baltimore Ravens", "Buffalo Bills", "Cincinnati Bengals", "Cleveland Browns",
+        "Denver Broncos", "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars",
+        "Kansas City Chiefs", "Las Vegas Raiders", "Los Angeles Chargers", "Miami Dolphins",
+        "New England Patriots", "New York Jets", "Pittsburgh Steelers", "Tennessee Titans"
+    ]
+
+    nfc_teams = [
+        "-- Choose a team --",
+        "Arizona Cardinals", "Atlanta Falcons", "Carolina Panthers", "Chicago Bears",
+        "Dallas Cowboys", "Detroit Lions", "Green Bay Packers", "Los Angeles Rams",
+        "Minnesota Vikings", "New Orleans Saints", "New York Giants", "Philadelphia Eagles",
+        "San Francisco 49ers", "Seattle Seahawks", "Tampa Bay Buccaneers", "Washington Commanders"
+    ]
+
+    # Top bracket row
     cols = st.columns([1, 1, 1, 0.9, 1, 1, 1])
 
     # ---- AFC Wild / Bye ----
@@ -92,7 +110,7 @@ if st.session_state.flow == "predicting":
         st.markdown("**AFC Wild**")
         st.button("AFC Bye")
         st.markdown("Bye Week")
-        vspace(1)
+        vspace(1) 
         st.button("AFC_Wild1")
         st.button("AFC_Wild2")
         vspace(1)
@@ -158,29 +176,23 @@ if st.session_state.flow == "predicting":
         st.button("NFC_Conf1")
         st.button("NFC_Conf2")
 
-    # ---- Bottom control box ----
-    outer_l, outer_c, outer_r = st.columns([1.5, 2, 1.5])
-    with outer_c:
-        st.markdown("---")
+    # ---- CONTROLS SECTION (wider, centered below) ----
+    control_cols = st.columns([2, 2.5, 2])
+    
+    with control_cols[1]:
         st.markdown("### Controls")
         tabs = st.tabs(["AutoML", "Choose Team"])
 
         with tabs[0]:
             st.markdown("#### AutoML (placeholder)")
-            st.button("Run AutoML")
+            if st.button("Run AutoML"):
+                pass
 
         with tabs[1]:
             chosen = st.selectbox(
                 "Pick a team",
                 ["--", "AFC_Wild1", "AFC_Conf1", "NFC_Wild1"]
             )
-            st.button("Set Favorite Team")
-
-    b1, b2, b3 = st.columns([1, 2, 1])
-    with b2:
-        if st.button("Back to Model Selection"):
-            st.session_state.flow = None
-            st.rerun()
 
 # ---- TRAINING state ----
 if st.session_state.flow == "training":

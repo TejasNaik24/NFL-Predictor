@@ -378,7 +378,7 @@ if st.session_state.flow == "predicting":
     
     with control_cols[1]:
         with st.container(border=True):
-            c1, c2, c3 = st.columns([1, 2, 1])
+            c1, c2, c3 = st.columns([1, 1, 1])
             with c2:
                 st.markdown("### Controls")
             
@@ -387,7 +387,7 @@ if st.session_state.flow == "predicting":
             with r2:
                 mode = st.radio(
                     "Control Mode",
-                    ["AutoML", "Choose Team"],
+                    ["AutoML", "Choose Teams"],
                     index=0 if st.session_state.control_mode == "AutoML" else 1,
                     horizontal=True,
                     label_visibility="collapsed"
@@ -401,14 +401,17 @@ if st.session_state.flow == "predicting":
             st.markdown("---")
             
             if mode == "AutoML":
-                st.markdown("#### AutoML (placeholder)")
-                if st.button("Run AutoML"):
+                st.markdown("#### Manual Prediction")
+                st.write("Manually select teams for each round of the playoff bracket using the dropdowns on the left and right.")
+                vspace(1)
+                if st.button("Predict Bracket", use_container_width=True, key="predict_automl"):
                     pass
             else:
-                chosen = st.selectbox(
-                    "Pick a team",
-                    ["--", "AFC_Wild1", "AFC_Conf1", "NFC_Wild1"]
-                )
+                st.markdown("#### Manual Selection")
+                st.write("Choose teams from the dropdowns to manually build your playoff bracket and see how it plays out.")
+                vspace(1)
+                if st.button("Predict Bracket", use_container_width=True, key="predict_manual"):
+                    pass
 
 # ---- TRAINING state ----
 if st.session_state.flow == "training":

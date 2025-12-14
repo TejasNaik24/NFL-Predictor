@@ -20,7 +20,6 @@ if "control_mode" not in st.session_state:
     st.session_state.control_mode = "Choose Team"  # Default to Choose Team so dropdowns are enabled
 
 # ---- Centered Title (ALWAYS VISIBLE) ----
-st.markdown("")  # Minimal space at top
 col1, col2, col3 = st.columns([1, 1, 0.5])
 with col2:
     st.title("NFL Predictor")
@@ -108,23 +107,38 @@ if st.session_state.flow == "predicting":
     # Top bracket row
     cols = st.columns([1, 1, 1, 0.9, 1, 1, 1])
 
-    # Determine if dropdowns should be disabled
-    dropdowns_disabled = (st.session_state.control_mode == "AutoML")
+    # Determine if we're in manual mode (dropdowns) or AutoML mode (buttons)
+    manual_mode = (st.session_state.control_mode == "Choose Team")
 
     # ---- AFC Wild / Bye ----
     with cols[0]:
         st.markdown("**AFC Wild**")
-        st.selectbox("AFC Bye", afc_teams, key="afc_bye", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("AFC Bye", afc_teams, key="afc_bye", label_visibility="collapsed")
+        else:
+            st.button("AFC Bye")
         st.markdown("Bye Week")
-        vspace(1) 
-        st.selectbox("Wild Card 1", afc_teams, key="afc_wild1", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 2", afc_teams, key="afc_wild2", label_visibility="collapsed", disabled=dropdowns_disabled)
         vspace(1)
-        st.selectbox("Wild Card 3", afc_teams, key="afc_wild3", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 4", afc_teams, key="afc_wild4", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("Wild Card 1", afc_teams, key="afc_wild1", label_visibility="collapsed")
+            st.selectbox("Wild Card 2", afc_teams, key="afc_wild2", label_visibility="collapsed")
+        else:
+            st.button("AFC_Wild1")
+            st.button("AFC_Wild2")
         vspace(1)
-        st.selectbox("Wild Card 5", afc_teams, key="afc_wild5", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 6", afc_teams, key="afc_wild6", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("Wild Card 3", afc_teams, key="afc_wild3", label_visibility="collapsed")
+            st.selectbox("Wild Card 4", afc_teams, key="afc_wild4", label_visibility="collapsed")
+        else:
+            st.button("AFC_Div1")
+            st.button("AFC_Div2")
+        vspace(1)
+        if manual_mode:
+            st.selectbox("Wild Card 5", afc_teams, key="afc_wild5", label_visibility="collapsed")
+            st.selectbox("Wild Card 6", afc_teams, key="afc_wild6", label_visibility="collapsed")
+        else:
+            st.button("AFC_Conf1")
+            st.button("AFC_Conf2")
 
     # ---- AFC Divisional ----
     with cols[1]:
@@ -170,17 +184,32 @@ if st.session_state.flow == "predicting":
     # ---- NFC Wild / Bye ----
     with cols[6]:
         st.markdown("**NFC Wild**")
-        st.selectbox("NFC Bye", nfc_teams, key="nfc_bye", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("NFC Bye", nfc_teams, key="nfc_bye", label_visibility="collapsed")
+        else:
+            st.button("NFC Bye")
         st.markdown("Bye Week")
         vspace(1)
-        st.selectbox("Wild Card 1", nfc_teams, key="nfc_wild1", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 2", nfc_teams, key="nfc_wild2", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("Wild Card 1", nfc_teams, key="nfc_wild1", label_visibility="collapsed")
+            st.selectbox("Wild Card 2", nfc_teams, key="nfc_wild2", label_visibility="collapsed")
+        else:
+            st.button("NFC_Wild1")
+            st.button("NFC_Wild2")
         vspace(1)
-        st.selectbox("Wild Card 3", nfc_teams, key="nfc_wild3", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 4", nfc_teams, key="nfc_wild4", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("Wild Card 3", nfc_teams, key="nfc_wild3", label_visibility="collapsed")
+            st.selectbox("Wild Card 4", nfc_teams, key="nfc_wild4", label_visibility="collapsed")
+        else:
+            st.button("NFC_Div1")
+            st.button("NFC_Div2")
         vspace(1)
-        st.selectbox("Wild Card 5", nfc_teams, key="nfc_wild5", label_visibility="collapsed", disabled=dropdowns_disabled)
-        st.selectbox("Wild Card 6", nfc_teams, key="nfc_wild6", label_visibility="collapsed", disabled=dropdowns_disabled)
+        if manual_mode:
+            st.selectbox("Wild Card 5", nfc_teams, key="nfc_wild5", label_visibility="collapsed")
+            st.selectbox("Wild Card 6", nfc_teams, key="nfc_wild6", label_visibility="collapsed")
+        else:
+            st.button("NFC_Conf1")
+            st.button("NFC_Conf2")
 
     # ---- CONTROLS SECTION (wider, centered below) ----
     control_cols = st.columns([2.3, 2.4, 2.3])

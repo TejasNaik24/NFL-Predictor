@@ -17,7 +17,7 @@ if "clicked" not in st.session_state:
 if "flow" not in st.session_state:
     st.session_state.flow = None  # None | "predicting" | "training"
 if "control_mode" not in st.session_state:
-    st.session_state.control_mode = "Choose Team"  # Default to Choose Team so dropdowns are enabled
+    st.session_state.control_mode = "Choose Teams"  # Default to Choose Team so dropdowns are enabled
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = None  # Track which model was selected
 
@@ -137,6 +137,9 @@ if st.session_state.flow == "predicting":
             if val and val != "-- Choose a team --":
                 nfc_selected.append(val)
 
+    # ALL BUTTONS DISABLED FOR NOW
+    buttons_disabled = True
+
     # ---- AFC Wild / Bye ----
     with cols[0]:
         st.markdown("**AFC Wild**")
@@ -146,12 +149,7 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("AFC Bye", available, index=idx, key="afc_bye", label_visibility="collapsed")
         else:
-            @st.dialog("AFC Bye - Analysis")
-            def show_afc_bye():
-                st.write("Placeholder")
-            
-            if st.button("AFC Bye", key="afc_bye_btn"):
-                show_afc_bye()
+            st.button("AFC Bye", key="afc_bye_btn", disabled=buttons_disabled)
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
@@ -165,19 +163,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="afc_wild2", label_visibility="collapsed")
         else:
-            @st.dialog("AFC Wild 1 - Analysis")
-            def show_afc_wild1():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Wild1", key="afc_wild1_btn"):
-                show_afc_wild1()
-            
-            @st.dialog("AFC Wild 2 - Analysis")
-            def show_afc_wild2():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Wild2", key="afc_wild2_btn"):
-                show_afc_wild2()
+            st.button("AFC_Wild1", key="afc_wild1_btn", disabled=buttons_disabled)
+            st.button("AFC_Wild2", key="afc_wild2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild3")
@@ -190,19 +177,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="afc_wild4", label_visibility="collapsed")
         else:
-            @st.dialog("AFC Div 1 - Analysis")
-            def show_afc_div1():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Div1", key="afc_div1_btn"):
-                show_afc_div1()
-            
-            @st.dialog("AFC Div 2 - Analysis")
-            def show_afc_div2():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Div2", key="afc_div2_btn"):
-                show_afc_div2()
+            st.button("AFC_Div1", key="afc_div1_btn", disabled=buttons_disabled)
+            st.button("AFC_Div2", key="afc_div2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild5")
@@ -215,146 +191,49 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="afc_wild6", label_visibility="collapsed")
         else:
-            @st.dialog("AFC Conf 1 - Analysis")
-            def show_afc_conf1():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Conf1", key="afc_conf1_btn"):
-                show_afc_conf1()
-            
-            @st.dialog("AFC Conf 2 - Analysis")
-            def show_afc_conf2():
-                st.write("Placeholder")
-            
-            if st.button("AFC_Conf2", key="afc_conf2_btn"):
-                show_afc_conf2()
+            st.button("AFC_Conf1", key="afc_conf1_btn", disabled=buttons_disabled)
+            st.button("AFC_Conf2", key="afc_conf2_btn", disabled=buttons_disabled)
 
     # ---- AFC Divisional ----
     with cols[1]:
         st.markdown("**AFC Divisional**")
         vspace(3)
-        
-        @st.dialog("AFC Div Win 1 - Analysis")
-        def show_afc_div_win_1():
-            st.write("Placeholder")
-        
-        if st.button("AFC Div Win 1", key="afc_div_win_1"):
-            show_afc_div_win_1()
-        
-        @st.dialog("AFC Div Win 2 - Analysis")
-        def show_afc_div_win_2():
-            st.write("Placeholder")
-        
-        if st.button("AFC Div Win 2", key="afc_div_win_2"):
-            show_afc_div_win_2()
-        
+        st.button("AFC Div Win 1", key="afc_div_win_1", disabled=buttons_disabled)
+        st.button("AFC Div Win 2", key="afc_div_win_2", disabled=buttons_disabled)
         vspace(9)
-        
-        @st.dialog("AFC Div Win 3 - Analysis")
-        def show_afc_div_win_3():
-            st.write("Placeholder")
-        
-        if st.button("AFC Div Win 3", key="afc_div_win_3"):
-            show_afc_div_win_3()
-        
-        @st.dialog("AFC Div Win 4 - Analysis")
-        def show_afc_div_win_4():
-            st.write("Placeholder")
-        
-        if st.button("AFC Div Win 4", key="afc_div_win_4"):
-            show_afc_div_win_4()
+        st.button("AFC Div Win 3", key="afc_div_win_3", disabled=buttons_disabled)
+        st.button("AFC Div Win 4", key="afc_div_win_4", disabled=buttons_disabled)
 
     # ---- AFC Conference ----
     with cols[2]:
         st.markdown("**AFC Conference**")
         vspace(11)
-        
-        @st.dialog("AFC Conf Win 1 - Analysis")
-        def show_afc_conf_win_1():
-            st.write("Placeholder")
-        
-        if st.button("AFC Conf Win 1", key="afc_conf_win_1"):
-            show_afc_conf_win_1()
-        
-        @st.dialog("AFC Conf Win 2 - Analysis")
-        def show_afc_conf_win_2():
-            st.write("Placeholder")
-        
-        if st.button("AFC Conf Win 2", key="afc_conf_win_2"):
-            show_afc_conf_win_2()
+        st.button("AFC Conf Win 1", key="afc_conf_win_1", disabled=buttons_disabled)
+        st.button("AFC Conf Win 2", key="afc_conf_win_2", disabled=buttons_disabled)
 
     # ---- SUPER BOWL (centered vertically) ----
     with cols[3]:
         st.markdown("**Super Bowl**")
         vspace(11)
-        
-        @st.dialog("SB Team A - Analysis")
-        def show_sb_team_a():
-            st.write("Placeholder")
-        
-        if st.button("SB Team A", key="sb_team_a"):
-            show_sb_team_a()
-        
-        @st.dialog("SB Team B - Analysis")
-        def show_sb_team_b():
-            st.write("Placeholder")
-        
-        if st.button("SB Team B", key="sb_team_b"):
-            show_sb_team_b()
+        st.button("SB Team A", key="sb_team_a", disabled=buttons_disabled)
+        st.button("SB Team B", key="sb_team_b", disabled=buttons_disabled)
 
     # ---- NFC Conference ----
     with cols[4]:
         st.markdown("**NFC Conference**")
         vspace(11)
-        
-        @st.dialog("NFC Conf Win 1 - Analysis")
-        def show_nfc_conf_win_1():
-            st.write("Placeholder")
-        
-        if st.button("NFC Conf Win 1", key="nfc_conf_win_1"):
-            show_nfc_conf_win_1()
-        
-        @st.dialog("NFC Conf Win 2 - Analysis")
-        def show_nfc_conf_win_2():
-            st.write("Placeholder")
-        
-        if st.button("NFC Conf Win 2", key="nfc_conf_win_2"):
-            show_nfc_conf_win_2()
+        st.button("NFC Conf Win 1", key="nfc_conf_win_1", disabled=buttons_disabled)
+        st.button("NFC Conf Win 2", key="nfc_conf_win_2", disabled=buttons_disabled)
 
     # ---- NFC Divisional ----
     with cols[5]:
         st.markdown("**NFC Divisional**")
         vspace(3)
-        
-        @st.dialog("NFC Div Win 1 - Analysis")
-        def show_nfc_div_win_1():
-            st.write("Placeholder")
-        
-        if st.button("NFC Div Win 1", key="nfc_div_win_1"):
-            show_nfc_div_win_1()
-        
-        @st.dialog("NFC Div Win 2 - Analysis")
-        def show_nfc_div_win_2():
-            st.write("Placeholder")
-        
-        if st.button("NFC Div Win 2", key="nfc_div_win_2"):
-            show_nfc_div_win_2()
-        
+        st.button("NFC Div Win 1", key="nfc_div_win_1", disabled=buttons_disabled)
+        st.button("NFC Div Win 2", key="nfc_div_win_2", disabled=buttons_disabled)
         vspace(9)
-        
-        @st.dialog("NFC Div Win 3 - Analysis")
-        def show_nfc_div_win_3():
-            st.write("Placeholder")
-        
-        if st.button("NFC Div Win 3", key="nfc_div_win_3"):
-            show_nfc_div_win_3()
-        
-        @st.dialog("NFC Div Win 4 - Analysis")
-        def show_nfc_div_win_4():
-            st.write("Placeholder")
-        
-        if st.button("NFC Div Win 4", key="nfc_div_win_4"):
-            show_nfc_div_win_4()
+        st.button("NFC Div Win 3", key="nfc_div_win_3", disabled=buttons_disabled)
+        st.button("NFC Div Win 4", key="nfc_div_win_4", disabled=buttons_disabled)
 
     # ---- NFC Wild / Bye ----
     with cols[6]:
@@ -365,12 +244,7 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("NFC Bye", available, index=idx, key="nfc_bye", label_visibility="collapsed")
         else:
-            @st.dialog("NFC Bye - Analysis")
-            def show_nfc_bye():
-                st.write("Placeholder")
-            
-            if st.button("NFC Bye", key="nfc_bye_btn"):
-                show_nfc_bye()
+            st.button("NFC Bye", key="nfc_bye_btn", disabled=buttons_disabled)
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
@@ -384,19 +258,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="nfc_wild2", label_visibility="collapsed")
         else:
-            @st.dialog("NFC Wild 1 - Analysis")
-            def show_nfc_wild1():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Wild1", key="nfc_wild1_btn"):
-                show_nfc_wild1()
-            
-            @st.dialog("NFC Wild 2 - Analysis")
-            def show_nfc_wild2():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Wild2", key="nfc_wild2_btn"):
-                show_nfc_wild2()
+            st.button("NFC_Wild1", key="nfc_wild1_btn", disabled=buttons_disabled)
+            st.button("NFC_Wild2", key="nfc_wild2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild3")
@@ -409,19 +272,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="nfc_wild4", label_visibility="collapsed")
         else:
-            @st.dialog("NFC Div 1 - Analysis")
-            def show_nfc_div1():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Div1", key="nfc_div1_btn"):
-                show_nfc_div1()
-            
-            @st.dialog("NFC Div 2 - Analysis")
-            def show_nfc_div2():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Div2", key="nfc_div2_btn"):
-                show_nfc_div2()
+            st.button("NFC_Div1", key="nfc_div1_btn", disabled=buttons_disabled)
+            st.button("NFC_Div2", key="nfc_div2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild5")
@@ -434,19 +286,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="nfc_wild6", label_visibility="collapsed")
         else:
-            @st.dialog("NFC Conf 1 - Analysis")
-            def show_nfc_conf1():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Conf1", key="nfc_conf1_btn"):
-                show_nfc_conf1()
-            
-            @st.dialog("NFC Conf 2 - Analysis")
-            def show_nfc_conf2():
-                st.write("Placeholder")
-            
-            if st.button("NFC_Conf2", key="nfc_conf2_btn"):
-                show_nfc_conf2()
+            st.button("NFC_Conf1", key="nfc_conf1_btn", disabled=buttons_disabled)
+            st.button("NFC_Conf2", key="nfc_conf2_btn", disabled=buttons_disabled)
 
     # ---- CONTROLS SECTION (wider, centered below) ----
     control_cols = st.columns([2.8, 5, 3.3])
@@ -489,14 +330,20 @@ if st.session_state.flow == "predicting":
             st.markdown("---")
             
             if mode == "AutoML":
-                st.markdown("#### Manual Prediction")
-                st.write("Manually select teams for each round of the playoff bracket using the dropdowns on the left and right.")
+                st.markdown("#### AutoML")
+                st.write(
+                "Fully autonomously predict the entire playoff bracket using two models: "
+                "one to determine which teams qualify for the postseason, and another to simulate each round "
+                "and predict the Super Bowl champion.")
                 vspace(1)
                 if st.button("Predict Bracket", use_container_width=True, key="predict_automl"):
                     pass
             else:
                 st.markdown("#### Manual Selection")
-                st.write("Choose teams from the dropdowns to manually build your playoff bracket and see how it plays out.")
+                st.write(
+                "Choose the playoff teams manually using the dropdowns. "
+                "This mode uses only the playoff bracket model to simulate each round "
+                "from the Wild Card through the Super Bowl and determine the champion.")
                 vspace(1)
                 if st.button("Predict Bracket", use_container_width=True, key="predict_manual"):
                     pass

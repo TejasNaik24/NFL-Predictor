@@ -88,7 +88,7 @@ if st.session_state.clicked and st.session_state.flow is None:
 if st.session_state.flow == "predicting":
 
     # NFL Teams
-    afc_teams = [
+    afc_teams_full = [
         "-- Choose a team --",
         "Baltimore Ravens", "Buffalo Bills", "Cincinnati Bengals", "Cleveland Browns",
         "Denver Broncos", "Houston Texans", "Indianapolis Colts", "Jacksonville Jaguars",
@@ -96,7 +96,7 @@ if st.session_state.flow == "predicting":
         "New England Patriots", "New York Jets", "Pittsburgh Steelers", "Tennessee Titans"
     ]
 
-    nfc_teams = [
+    nfc_teams_full = [
         "-- Choose a team --",
         "Arizona Cardinals", "Atlanta Falcons", "Carolina Panthers", "Chicago Bears",
         "Dallas Cowboys", "Detroit Lions", "Green Bay Packers", "Los Angeles Rams",
@@ -110,11 +110,37 @@ if st.session_state.flow == "predicting":
     # Determine if we're in manual mode (dropdowns) or AutoML mode (buttons)
     manual_mode = (st.session_state.control_mode == "Choose Teams")
 
+    # Helper function to get available teams (excluding already selected ones)
+    def get_available_teams(full_list, selected_list, current_key):
+        current_value = st.session_state.get(current_key, "-- Choose a team --")
+        return [t for t in full_list if t == "-- Choose a team --" or t not in selected_list or t == current_value]
+
+    # Get currently selected AFC teams
+    afc_selected = []
+    if manual_mode:
+        afc_keys = ["afc_bye", "afc_wild1", "afc_wild2", "afc_wild3", "afc_wild4", "afc_wild5", "afc_wild6"]
+        for key in afc_keys:
+            val = st.session_state.get(key, "-- Choose a team --")
+            if val and val != "-- Choose a team --":
+                afc_selected.append(val)
+
+    # Get currently selected NFC teams
+    nfc_selected = []
+    if manual_mode:
+        nfc_keys = ["nfc_bye", "nfc_wild1", "nfc_wild2", "nfc_wild3", "nfc_wild4", "nfc_wild5", "nfc_wild6"]
+        for key in nfc_keys:
+            val = st.session_state.get(key, "-- Choose a team --")
+            if val and val != "-- Choose a team --":
+                nfc_selected.append(val)
+
     # ---- AFC Wild / Bye ----
     with cols[0]:
         st.markdown("**AFC Wild**")
         if manual_mode:
-            st.selectbox("AFC Bye", afc_teams, key="afc_bye", label_visibility="collapsed")
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_bye")
+            current = st.session_state.get("afc_bye", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("AFC Bye", available, index=idx, key="afc_bye", label_visibility="collapsed")
         else:
             @st.dialog("AFC Bye - Analysis")
             def show_afc_bye():
@@ -125,8 +151,15 @@ if st.session_state.flow == "predicting":
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 1", afc_teams, key="afc_wild1", label_visibility="collapsed")
-            st.selectbox("Wild Card 2", afc_teams, key="afc_wild2", label_visibility="collapsed")
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild1")
+            current = st.session_state.get("afc_wild1", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 1", available, index=idx, key="afc_wild1", label_visibility="collapsed")
+            
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild2")
+            current = st.session_state.get("afc_wild2", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 2", available, index=idx, key="afc_wild2", label_visibility="collapsed")
         else:
             @st.dialog("AFC Wild 1 - Analysis")
             def show_afc_wild1():
@@ -143,8 +176,15 @@ if st.session_state.flow == "predicting":
                 show_afc_wild2()
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 3", afc_teams, key="afc_wild3", label_visibility="collapsed")
-            st.selectbox("Wild Card 4", afc_teams, key="afc_wild4", label_visibility="collapsed")
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild3")
+            current = st.session_state.get("afc_wild3", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 3", available, index=idx, key="afc_wild3", label_visibility="collapsed")
+            
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild4")
+            current = st.session_state.get("afc_wild4", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 4", available, index=idx, key="afc_wild4", label_visibility="collapsed")
         else:
             @st.dialog("AFC Div 1 - Analysis")
             def show_afc_div1():
@@ -161,8 +201,15 @@ if st.session_state.flow == "predicting":
                 show_afc_div2()
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 5", afc_teams, key="afc_wild5", label_visibility="collapsed")
-            st.selectbox("Wild Card 6", afc_teams, key="afc_wild6", label_visibility="collapsed")
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild5")
+            current = st.session_state.get("afc_wild5", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 5", available, index=idx, key="afc_wild5", label_visibility="collapsed")
+            
+            available = get_available_teams(afc_teams_full, afc_selected, "afc_wild6")
+            current = st.session_state.get("afc_wild6", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 6", available, index=idx, key="afc_wild6", label_visibility="collapsed")
         else:
             @st.dialog("AFC Conf 1 - Analysis")
             def show_afc_conf1():
@@ -309,7 +356,10 @@ if st.session_state.flow == "predicting":
     with cols[6]:
         st.markdown("**NFC Wild**")
         if manual_mode:
-            st.selectbox("NFC Bye", nfc_teams, key="nfc_bye", label_visibility="collapsed")
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_bye")
+            current = st.session_state.get("nfc_bye", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("NFC Bye", available, index=idx, key="nfc_bye", label_visibility="collapsed")
         else:
             @st.dialog("NFC Bye - Analysis")
             def show_nfc_bye():
@@ -320,8 +370,15 @@ if st.session_state.flow == "predicting":
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 1", nfc_teams, key="nfc_wild1", label_visibility="collapsed")
-            st.selectbox("Wild Card 2", nfc_teams, key="nfc_wild2", label_visibility="collapsed")
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild1")
+            current = st.session_state.get("nfc_wild1", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 1", available, index=idx, key="nfc_wild1", label_visibility="collapsed")
+            
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild2")
+            current = st.session_state.get("nfc_wild2", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 2", available, index=idx, key="nfc_wild2", label_visibility="collapsed")
         else:
             @st.dialog("NFC Wild 1 - Analysis")
             def show_nfc_wild1():
@@ -338,8 +395,15 @@ if st.session_state.flow == "predicting":
                 show_nfc_wild2()
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 3", nfc_teams, key="nfc_wild3", label_visibility="collapsed")
-            st.selectbox("Wild Card 4", nfc_teams, key="nfc_wild4", label_visibility="collapsed")
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild3")
+            current = st.session_state.get("nfc_wild3", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 3", available, index=idx, key="nfc_wild3", label_visibility="collapsed")
+            
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild4")
+            current = st.session_state.get("nfc_wild4", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 4", available, index=idx, key="nfc_wild4", label_visibility="collapsed")
         else:
             @st.dialog("NFC Div 1 - Analysis")
             def show_nfc_div1():
@@ -356,8 +420,15 @@ if st.session_state.flow == "predicting":
                 show_nfc_div2()
         vspace(1)
         if manual_mode:
-            st.selectbox("Wild Card 5", nfc_teams, key="nfc_wild5", label_visibility="collapsed")
-            st.selectbox("Wild Card 6", nfc_teams, key="nfc_wild6", label_visibility="collapsed")
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild5")
+            current = st.session_state.get("nfc_wild5", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 5", available, index=idx, key="nfc_wild5", label_visibility="collapsed")
+            
+            available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild6")
+            current = st.session_state.get("nfc_wild6", "-- Choose a team --")
+            idx = available.index(current) if current in available else 0
+            st.selectbox("Wild Card 6", available, index=idx, key="nfc_wild6", label_visibility="collapsed")
         else:
             @st.dialog("NFC Conf 1 - Analysis")
             def show_nfc_conf1():

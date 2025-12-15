@@ -18,6 +18,8 @@ if "flow" not in st.session_state:
     st.session_state.flow = None  # None | "predicting" | "training"
 if "control_mode" not in st.session_state:
     st.session_state.control_mode = "Choose Team"  # Default to Choose Team so dropdowns are enabled
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = None  # Track which model was selected
 
 # ---- Centered Title (ALWAYS VISIBLE) ----
 col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -67,6 +69,7 @@ if st.session_state.clicked and st.session_state.flow is None:
                 b_l, b_c, b_r = st.columns([1, 1, 1])
                 with b_c:
                     if st.button("Predict Selected Model"):
+                        st.session_state.selected_model = model_choice
                         st.session_state.flow = "predicting"
                         st.rerun()
 
@@ -81,6 +84,7 @@ if st.session_state.clicked and st.session_state.flow is None:
             t_l, t_c, t_r = st.columns([1, 1, 1])
             with t_c:
                 if st.button("Train Model Now"):
+                    st.session_state.selected_model = "Newly Trained Model"
                     st.session_state.flow = "training"
                     st.rerun()
 
@@ -468,6 +472,19 @@ if st.session_state.flow == "predicting":
             if mode != st.session_state.control_mode:
                 st.session_state.control_mode = mode
                 st.rerun()
+            
+            st.markdown("---")
+            
+            # Model info section - compact row
+            if st.session_state.selected_model:
+                model_row = st.columns([1.3, 1])
+                with model_row[0]:
+                    st.markdown(f"**Model:** {st.session_state.selected_model}")
+                with model_row[1]:
+                    if st.button("Choose a different model", key="change_model"):
+                        st.session_state.flow = None
+                        st.session_state.clicked = True
+                        st.rerun()
             
             st.markdown("---")
             

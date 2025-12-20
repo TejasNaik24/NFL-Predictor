@@ -45,9 +45,9 @@ def scrape_nfl_data(
     current_season = current_year - 1 if current_month in [1, 2] else current_year
     
     # User requested dramatic pause/processing for UI effect
-    time.sleep(1.0)
+    time.sleep(1.5)
     log("Processing...", "info")
-    time.sleep(1.0)
+    time.sleep(2)
     
     # Scraping loop
     collected_years = 0

@@ -3,6 +3,8 @@ import glob
 import joblib
 import pandas as pd
 import numpy as np
+import time
+import json
 from typing import Callable, Optional, Dict, Any
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -89,7 +91,17 @@ def train_models(
         # -------------------------
         # Model 1: Playoff Qualifier (season aggregates)
         # -------------------------
+        # Pause before showing header
+        time.sleep(1.5)
         log("Training Model 1: Playoff Qualifier", "info")
+        
+        # Pause before showing "Training..."
+        time.sleep(1.5)
+        log("Training...", "info")
+        
+        # Simulation of training time
+        time.sleep(2.5)
+        
         df_reg = df_full[df_full['season_type'].str.lower() == 'reg'].copy()
         if df_reg.empty:
             raise RuntimeError("No regular-season rows found (season_type == 'reg') — can't train Model 1.")
@@ -149,10 +161,27 @@ def train_models(
         
         log("Model 1 training complete", "success")
         
+        # Emit metrics immediately for UI
+        if progress_callback:
+            progress_callback(json.dumps({
+                "accuracy": model1_accuracy,
+                "report": model1_report
+            }), "metrics_model1")
+        
         # -------------------------
         # Model 2: Playoff Game Winner (diff features + recent-form + Elo)
         # -------------------------
+        # Pause before showing header
+        time.sleep(1.5)
         log("Training Model 2: Bracket Predictor", "info")
+
+        # Pause before showing "Training..."
+        time.sleep(1.5)
+        log("Training...", "info")
+
+        # Simulation of training time
+        time.sleep(2.5)
+        
         playoff_df = df_full[df_full['season_type'].str.lower() == 'post'].copy()
         if playoff_df.empty:
             log("Warning: no playoff rows found (season_type == 'post'). Model 2 will be skipped.", "info")
@@ -307,6 +336,13 @@ def train_models(
             model2_report = classification_report(y_test2, y_pred2)
             
             log("Model 2 training complete", "success")
+
+            # Emit metrics immediately for UI
+            if progress_callback:
+                progress_callback(json.dumps({
+                    "accuracy": model2_accuracy,
+                    "report": model2_report
+                }), "metrics_model2")
         
         # -------------------------
         # Save models into models/model_START-END (silent)

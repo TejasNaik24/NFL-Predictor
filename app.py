@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import re
 import joblib
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -520,13 +521,17 @@ if st.session_state.flow == "training":
         from Predictor import train_models
         
         # Display containers for live updates
+        # Initial pause requested by user before showing Scraping header
+        import time
+        time.sleep(1.5)
+        
         scraping_container = st.empty()
         model1_container = st.empty()
         model2_container = st.empty()
         
         # Create persistent containers for each section
         with scraping_container.container():
-            st.subheader("Scraping NFL Data...")
+            st.subheader("Scraping NFL Data From NFLVERSE...")
             scraping_log = st.empty()
             
         with model1_container.container():
@@ -542,6 +547,23 @@ if st.session_state.flow == "training":
         # Define callback function to capture progress AND render immediately
         def training_progress_callback(message: str, msg_type: str = "info"):
             """Callback for training progress updates - renders immediately"""
+            # Special handling for metrics JSON payloads
+            if msg_type == "metrics_model1":
+                data = json.loads(message)
+                with model1_metrics.container():
+                    st.metric("Accuracy", f"{data['accuracy']:.4f}")
+                    with st.expander("Classification Report"):
+                        st.text(data['report'])
+                return
+            
+            if msg_type == "metrics_model2":
+                data = json.loads(message)
+                with model2_metrics.container():
+                    st.metric("Accuracy", f"{data['accuracy']:.4f}")
+                    with st.expander("Classification Report"):
+                        st.text(data['report'])
+                return
+            
             # Add to history
             st.session_state.training_log.append({"message": message, "type": msg_type})
             
@@ -566,7 +588,7 @@ if st.session_state.flow == "training":
             if target_log:
                 with target_log.container():
                     current_log_phase = "scraping"
-                    for log in st.session_state.training_log:
+                    for i, log in enumerate(st.session_state.training_log):
                         msg_text = log["message"]
                         if "Training Model 1" in msg_text:
                             current_log_phase = "model1"
@@ -574,12 +596,29 @@ if st.session_state.flow == "training":
                             current_log_phase = "model2"
                             
                         if current_log_phase == st.session_state.current_phase:
+                             # Don't show the header trigger messages in the log
+                             if "Training Model 1" in msg_text or "Training Model 2" in msg_text:
+                                 continue
+                             
+                             # Deduplicate consecutive messages to prevent "Processing..." double vision
+                             # This handles potential state/hot-reload glitches
+                             if i > 0:
+                                 prev_msg = st.session_state.training_log[i-1]["message"]
+                                 if msg_text == prev_msg:
+                                     continue
+                             
                              if log["type"] == "success":
                                 st.success(log["message"])
                              elif log["type"] == "error":
                                 st.error(log["message"])
                              else:
-                                st.write(log["message"])
+                                msg = log["message"]
+                                # User requested "Processing..." and "Training..." be bigger.
+                                # Using standard Markdown headers (safe mode).
+                                if msg.strip() in ["Processing...", "Training..."]:
+                                    st.markdown(f"### {msg}")
+                                else:
+                                    st.write(msg)
 
         # Clear log for scraping
         st.session_state.training_log = []
@@ -602,30 +641,16 @@ if st.session_state.flow == "training":
         # Run training
         training_result = train_models(progress_callback=training_progress_callback)
         
-        # Update Metrics Final Display (since callback only did logs)
+        # Check if training was successful
         if training_result["success"]:
-             # Ensure headers are visible at end (in case logged messages didn't trigger somehow, though they should)
+             # Ensure headers are visible at end (safety fallback)
              model1_header.subheader("Training Model 1: Playoff Qualifier")
              model2_header.subheader("Training Model 2: Bracket Predictor")
              
-             if training_result["model1"]:
-                with model1_metrics.container():
-                    st.metric("Accuracy", f"{training_result['model1']['accuracy']:.4f}")
-                    with st.expander("Classification Report"):
-                        st.text(training_result['model1']['classification_report'])
-             
-             if training_result["model2"]:
-                with model2_metrics.container():
-                    st.metric("Accuracy", f"{training_result['model2']['accuracy']:.4f}")
-                    with st.expander("Classification Report"):
-                        st.text(training_result['model2']['classification_report'])
-
-        # Check if training was successful
-        if training_result["success"]:
-            st.session_state.training_complete = True
-            st.session_state.training_results = training_result
-            st.session_state.selected_model = training_result["version_folder"]
-            st.success("Training complete! Your model is ready to use.")
+             st.session_state.training_complete = True
+             st.session_state.training_results = training_result
+             st.session_state.selected_model = training_result["version_folder"]
+             st.success("Training complete! Your model is ready to use.")
         else:
             st.error(f"Training failed: {training_result.get('error', 'Unknown error')}")
             if st.button("Restart Training"):

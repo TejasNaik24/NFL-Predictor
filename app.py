@@ -498,7 +498,7 @@ if st.session_state.flow == "training":
         st.session_state.training_results = None
     
     # Title
-    st.title("Training New Model")
+    st.markdown("### Training New Model")
     st.markdown("---")
     
     # Define callback function to capture progress
@@ -526,7 +526,7 @@ if st.session_state.flow == "training":
         
         # Create persistent containers for each section
         with scraping_container.container():
-            st.subheader("Scraping NFL Data")
+            st.subheader("Scraping NFL Data...")
             scraping_log = st.empty()
             
         with model1_container.container():

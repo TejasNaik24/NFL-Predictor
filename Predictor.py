@@ -148,8 +148,6 @@ def train_models(
         model1_report = classification_report(y_test1, y_pred1)
         
         log("Model 1 training complete", "success")
-        log(f"Accuracy: {model1_accuracy:.4f}", "info")
-        log(f"Classification Report:\n{model1_report}", "info")
         
         # -------------------------
         # Model 2: Playoff Game Winner (diff features + recent-form + Elo)
@@ -309,8 +307,6 @@ def train_models(
             model2_report = classification_report(y_test2, y_pred2)
             
             log("Model 2 training complete", "success")
-            log(f"Accuracy: {model2_accuracy:.4f}", "info")
-            log(f"Classification Report:\n{model2_report}", "info")
         
         # -------------------------
         # Save models into models/model_START-END (silent)

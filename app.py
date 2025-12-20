@@ -1,7 +1,10 @@
 import streamlit as st
 import os
+import re
+import joblib
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Optional
 
 # ---- config ----
 icon_path = os.path.join("static", "nfl.png")
@@ -11,6 +14,97 @@ st.set_page_config(page_title="NFL Predictor", page_icon=icon_path, layout="wide
 def vspace(n: int):
     for _ in range(n):
         st.write("")
+
+
+def list_model_versions(models_dir: str = "models") -> List[str]:
+    """
+    Discover and list all model version folders in the models/ directory.
+    
+    Args:
+        models_dir: Path to the models directory (default: "models")
+    
+    Returns:
+        A sorted list of model version folder names (e.g., ["model_2015-2024", "model_2014-2023"]).
+        Returns empty list if models_dir doesn't exist or has no matching folders.
+    
+    Sorting:
+        Sorts by end year (descending) if folder name matches pattern "model_*-YYYY",
+        otherwise sorts alphabetically (descending).
+    """
+    models_root = Path(models_dir)
+    
+    # If models directory doesn't exist, return empty list
+    if not models_root.exists() or not models_root.is_dir():
+        return []
+    
+    # Find all subdirectories that start with "model_"
+    versions = [
+        p.name for p in models_root.iterdir() 
+        if p.is_dir() and p.name.startswith("model_") and not p.name.startswith(".")
+    ]
+    
+    # Helper function to extract end year from folder name (e.g., "model_2015-2024" -> 2024)
+    def end_year(folder_name: str) -> int:
+        match = re.search(r"-(\d{4})$", folder_name)
+        return int(match.group(1)) if match else 0
+    
+    # Sort by end year (descending), then by name (descending) as fallback
+    versions.sort(key=lambda x: (end_year(x), x), reverse=True)
+    
+    return versions
+
+
+@st.cache_resource
+def load_model_version(version_folder: str, models_dir: str = "models") -> Dict[str, Optional[object]]:
+    """
+    Load the ML models from a specific version folder using joblib.
+    
+    Args:
+        version_folder: Name of the version folder (e.g., "model_2015-2024")
+        models_dir: Path to the models directory (default: "models")
+    
+    Returns:
+        A dictionary with keys:
+            - "model1": The playoff_qualifier model object (or None if not found)
+            - "model2": The bracket model object (or None if not found)
+            - "path": Absolute path to the version folder (str)
+    
+    Example usage:
+        models = load_model_version("model_2015-2024")
+        if models["model1"]:
+            predictions = models["model1"].predict(data)
+    
+    Note:
+        This function is cached with @st.cache_resource to avoid reloading
+        models on every Streamlit rerun. The cache persists across user sessions.
+    """
+    version_path = Path(models_dir) / version_folder
+    
+    # Expected filenames
+    model1_file = version_path / "model1_playoff_qualifier.pkl"
+    model2_file = version_path / "model2_bracket.pkl"
+    
+    # Load model1 if it exists
+    model1 = None
+    if model1_file.exists():
+        try:
+            model1 = joblib.load(model1_file)
+        except Exception as e:
+            st.warning(f"Failed to load model1 from {model1_file}: {e}")
+    
+    # Load model2 if it exists
+    model2 = None
+    if model2_file.exists():
+        try:
+            model2 = joblib.load(model2_file)
+        except Exception as e:
+            st.warning(f"Failed to load model2 from {model2_file}: {e}")
+    
+    return {
+        "model1": model1,
+        "model2": model2,
+        "path": str(version_path.absolute())
+    }
 
 # ---- Session state ----
 if "clicked" not in st.session_state:
@@ -55,24 +149,64 @@ if st.session_state.clicked and st.session_state.flow is None:
 
         with tab_use:
             st.markdown("### Choose Model")
+            
+            # Discover available model versions from models/ directory
+            available_versions = list_model_versions()
+            
+            # Build selectbox options: always include placeholder, then add discovered versions
+            selectbox_options = ["-- Choose a model --"] + available_versions
+            
+            # Show info message if no models found
+            if not available_versions:
+                st.info(
+                    "No saved model versions found in `models/` directory. "
+                    "Please train a new model or copy model folders into `models/`."
+                )
+            
+            # Display selectbox with discovered model versions
             model_choice = st.selectbox(
                 "Available models",
-                [
-                    "-- Choose a model --",
-                    f"Model 1 ({start_year}–{latest_year})",
-                    f"Model 2 ({start_year}–{latest_year})",
-                    f"Model 3 (Legacy {start_year}–{latest_year})"
-                ],
+                selectbox_options,
                 index=0
             )
 
+            # Show "Predict Selected Model" button only if a real model is selected
             if model_choice != "-- Choose a model --":
+                # Optional: Show which .pkl files exist in this version
+                version_path = Path("models") / model_choice
+                has_model1 = (version_path / "model1_playoff_qualifier.pkl").exists()
+                has_model2 = (version_path / "model2_bracket.pkl").exists()
+                
+                # Display available models info
+                info_parts = []
+                if has_model1:
+                    info_parts.append("✓ Playoff Qualifier (model1)")
+                if has_model2:
+                    info_parts.append("✓ Bracket Simulator (model2)")
+                
+                if info_parts:
+                    st.caption(" | ".join(info_parts))
+                else:
+                    st.warning(
+                        f"⚠️ No valid model files found in `{model_choice}/`. "
+                        f"Expected `model1_playoff_qualifier.pkl` and/or `model2_bracket.pkl`."
+                    )
+                
+                # Button to proceed to prediction
                 b_l, b_c, b_r = st.columns([1, 1, 1])
                 with b_c:
                     if st.button("Predict Selected Model"):
+                        # Set session state to the selected version folder name
                         st.session_state.selected_model = model_choice
                         st.session_state.flow = "predicting"
                         st.rerun()
+                        
+                        # Example: To load the models later (in prediction flow), use:
+                        # models = load_model_version(st.session_state.selected_model)
+                        # if models["model1"]:
+                        #     playoff_predictions = models["model1"].predict(team_data)
+                        # if models["model2"]:
+                        #     bracket_winner = models["model2"].predict(matchup_data)
 
         with tab_train:
             st.markdown("### Train New Model")
@@ -351,4 +485,164 @@ if st.session_state.flow == "predicting":
 
 # ---- TRAINING state ----
 if st.session_state.flow == "training":
-    pass
+    # Initialize session state for training
+    if "training_status" not in st.session_state:
+        st.session_state.training_status = None  # "scraping" | "training" | "complete"
+    if "training_log" not in st.session_state:
+        st.session_state.training_log = []
+    if "training_complete" not in st.session_state:
+        st.session_state.training_complete = False
+    if "training_started" not in st.session_state:
+        st.session_state.training_started = False
+    if "training_results" not in st.session_state:
+        st.session_state.training_results = None
+    
+    # Title
+    st.title("Training New Model")
+    st.markdown("---")
+    
+    # Define callback function to capture progress
+    def training_progress_callback(message: str, msg_type: str = "info"):
+        """Callback for training progress updates"""
+        st.session_state.training_log.append({"message": message, "type": msg_type})
+    
+    # Auto-start training if not started
+    if not st.session_state.training_started:
+        st.session_state.training_started = True
+        st.session_state.training_status = "scraping"
+        st.session_state.current_phase = "scraping"  # scraping, model1, model2
+        
+        # Import the training functions
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        
+        from Scraping_Data import scrape_nfl_data
+        from Predictor import train_models
+        
+        # Display containers for live updates
+        scraping_container = st.empty()
+        model1_container = st.empty()
+        model2_container = st.empty()
+        
+        # Create persistent containers for each section
+        with scraping_container.container():
+            st.subheader("Scraping NFL Data")
+            scraping_log = st.empty()
+            
+        with model1_container.container():
+            model1_header = st.empty() # Initially empty
+            model1_log = st.empty()
+            model1_metrics = st.empty()
+            
+        with model2_container.container():
+            model2_header = st.empty() # Initially empty
+            model2_log = st.empty()
+            model2_metrics = st.empty()
+
+        # Define callback function to capture progress AND render immediately
+        def training_progress_callback(message: str, msg_type: str = "info"):
+            """Callback for training progress updates - renders immediately"""
+            # Add to history
+            st.session_state.training_log.append({"message": message, "type": msg_type})
+            
+            # Detect phase change & Reveal Headers
+            if "Training Model 2" in message or "Bracket Predictor" in message:
+                st.session_state.current_phase = "model2"
+                model2_header.subheader("Training Model 2: Bracket Predictor")
+            elif "Training Model 1" in message:
+                st.session_state.current_phase = "model1"
+                model1_header.subheader("Training Model 1: Playoff Qualifier")
+                
+            # Render logs for the current phase
+            target_log = None
+            if st.session_state.current_phase == "scraping":
+                target_log = scraping_log
+            elif st.session_state.current_phase == "model1":
+                target_log = model1_log
+            elif st.session_state.current_phase == "model2":
+                target_log = model2_log
+            
+            # Filter logs for this phase to re-render the list
+            if target_log:
+                with target_log.container():
+                    current_log_phase = "scraping"
+                    for log in st.session_state.training_log:
+                        msg_text = log["message"]
+                        if "Training Model 1" in msg_text:
+                            current_log_phase = "model1"
+                        elif "Training Model 2" in msg_text:
+                            current_log_phase = "model2"
+                            
+                        if current_log_phase == st.session_state.current_phase:
+                             if log["type"] == "success":
+                                st.success(log["message"])
+                             elif log["type"] == "error":
+                                st.error(log["message"])
+                             else:
+                                st.write(log["message"])
+
+        # Clear log for scraping
+        st.session_state.training_log = []
+        
+        # Run scraping
+        st.session_state.current_phase = "scraping"
+        scraping_result = scrape_nfl_data(progress_callback=training_progress_callback)
+        
+        if not scraping_result["success"]:
+            st.error(f"Scraping failed: {scraping_result.get('error', 'Unknown error')}")
+            if st.button("Restart Training"):
+                st.session_state.training_started = False
+                st.session_state.training_log = []
+                st.rerun()
+            st.stop()
+        
+        # === MODEL TRAINING PHASE ===
+        st.session_state.training_status = "training"
+        
+        # Run training
+        training_result = train_models(progress_callback=training_progress_callback)
+        
+        # Update Metrics Final Display (since callback only did logs)
+        if training_result["success"]:
+             # Ensure headers are visible at end (in case logged messages didn't trigger somehow, though they should)
+             model1_header.subheader("Training Model 1: Playoff Qualifier")
+             model2_header.subheader("Training Model 2: Bracket Predictor")
+             
+             if training_result["model1"]:
+                with model1_metrics.container():
+                    st.metric("Accuracy", f"{training_result['model1']['accuracy']:.4f}")
+                    with st.expander("Classification Report"):
+                        st.text(training_result['model1']['classification_report'])
+             
+             if training_result["model2"]:
+                with model2_metrics.container():
+                    st.metric("Accuracy", f"{training_result['model2']['accuracy']:.4f}")
+                    with st.expander("Classification Report"):
+                        st.text(training_result['model2']['classification_report'])
+
+        # Check if training was successful
+        if training_result["success"]:
+            st.session_state.training_complete = True
+            st.session_state.training_results = training_result
+            st.session_state.selected_model = training_result["version_folder"]
+            st.success("Training complete! Your model is ready to use.")
+        else:
+            st.error(f"Training failed: {training_result.get('error', 'Unknown error')}")
+            if st.button("Restart Training"):
+                st.session_state.training_started = False
+                st.session_state.training_log = []
+                st.session_state.training_complete = False
+                st.rerun()
+            st.stop()
+    
+    # Show continue button if training is complete
+    if st.session_state.training_complete:
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("Continue to Predictions", use_container_width=True, type="primary"):
+                st.session_state.flow = "predicting"
+                st.session_state.training_started = False
+                st.session_state.training_log = []
+                st.session_state.training_complete = False
+                st.rerun()

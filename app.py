@@ -116,6 +116,10 @@ if "control_mode" not in st.session_state:
     st.session_state.control_mode = "Choose Teams"  # Default to Choose Team so dropdowns are enabled
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = None  # Track which model was selected
+if "bracket_result" not in st.session_state:
+    st.session_state.bracket_result = None  # AutoML bracket prediction results
+if "bracket_filled" not in st.session_state:
+    st.session_state.bracket_filled = False  # Whether bracket has been filled by AutoML
 
 # ---- Centered Title (ALWAYS VISIBLE) ----
 col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -273,8 +277,16 @@ if st.session_state.flow == "predicting":
             if val and val != "-- Choose a team --":
                 nfc_selected.append(val)
 
-    # ALL BUTTONS DISABLED FOR NOW
-    buttons_disabled = True
+    # ALL BUTTONS DISABLED UNLESS BRACKET IS FILLED
+    buttons_disabled = not st.session_state.bracket_filled
+    
+    # Helper to get bracket slot label dynamically
+    def get_bracket_label(slot_key: str, default_label: str) -> str:
+        """Get label from bracket result or return default."""
+        if st.session_state.bracket_filled and st.session_state.bracket_result:
+            slots = st.session_state.bracket_result.get("bracket_slots", {})
+            return slots.get(slot_key, default_label)
+        return default_label
 
     # ---- AFC Wild / Bye ----
     with cols[0]:
@@ -285,7 +297,7 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("AFC Bye", available, index=idx, key="afc_bye", label_visibility="collapsed")
         else:
-            st.button("AFC Bye", key="afc_bye_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_bye", "AFC Bye"), key="afc_bye_btn", disabled=buttons_disabled)
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
@@ -299,8 +311,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="afc_wild2", label_visibility="collapsed")
         else:
-            st.button("AFC_Wild1", key="afc_wild1_btn", disabled=buttons_disabled)
-            st.button("AFC_Wild2", key="afc_wild2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild1", "AFC Wild 1"), key="afc_wild1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild2", "AFC Wild 2"), key="afc_wild2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild3")
@@ -313,8 +325,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="afc_wild4", label_visibility="collapsed")
         else:
-            st.button("AFC_Div1", key="afc_div1_btn", disabled=buttons_disabled)
-            st.button("AFC_Div2", key="afc_div2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild3", "AFC Wild 3"), key="afc_div1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild4", "AFC Wild 4"), key="afc_div2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild5")
@@ -327,49 +339,49 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="afc_wild6", label_visibility="collapsed")
         else:
-            st.button("AFC_Conf1", key="afc_conf1_btn", disabled=buttons_disabled)
-            st.button("AFC_Conf2", key="afc_conf2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild5", "AFC Wild 5"), key="afc_conf1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("afc_wild6", "AFC Wild 6"), key="afc_conf2_btn", disabled=buttons_disabled)
 
     # ---- AFC Divisional ----
     with cols[1]:
         st.markdown("**AFC Divisional**")
         vspace(3)
-        st.button("AFC Div Win 1", key="afc_div_win_1", disabled=buttons_disabled)
-        st.button("AFC Div Win 2", key="afc_div_win_2", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_div_win_1", "AFC Div Win 1"), key="afc_div_win_1", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_div_win_2", "AFC Div Win 2"), key="afc_div_win_2", disabled=buttons_disabled)
         vspace(9)
-        st.button("AFC Div Win 3", key="afc_div_win_3", disabled=buttons_disabled)
-        st.button("AFC Div Win 4", key="afc_div_win_4", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_div_win_3", "AFC Div Win 3"), key="afc_div_win_3", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_div_win_4", "AFC Div Win 4"), key="afc_div_win_4", disabled=buttons_disabled)
 
     # ---- AFC Conference ----
     with cols[2]:
         st.markdown("**AFC Conference**")
         vspace(11)
-        st.button("AFC Conf Win 1", key="afc_conf_win_1", disabled=buttons_disabled)
-        st.button("AFC Conf Win 2", key="afc_conf_win_2", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_conf_win_1", "AFC Conf Win 1"), key="afc_conf_win_1", disabled=buttons_disabled)
+        st.button(get_bracket_label("afc_conf_win_2", "AFC Conf Win 2"), key="afc_conf_win_2", disabled=buttons_disabled)
 
     # ---- SUPER BOWL (centered vertically) ----
     with cols[3]:
         st.markdown("**Super Bowl**")
         vspace(11)
-        st.button("SB Team A", key="sb_team_a", disabled=buttons_disabled)
-        st.button("SB Team B", key="sb_team_b", disabled=buttons_disabled)
+        st.button(get_bracket_label("sb_team_a", "SB Team A"), key="sb_team_a", disabled=buttons_disabled)
+        st.button(get_bracket_label("sb_team_b", "SB Team B"), key="sb_team_b", disabled=buttons_disabled)
 
     # ---- NFC Conference ----
     with cols[4]:
         st.markdown("**NFC Conference**")
         vspace(11)
-        st.button("NFC Conf Win 1", key="nfc_conf_win_1", disabled=buttons_disabled)
-        st.button("NFC Conf Win 2", key="nfc_conf_win_2", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_conf_win_1", "NFC Conf Win 1"), key="nfc_conf_win_1", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_conf_win_2", "NFC Conf Win 2"), key="nfc_conf_win_2", disabled=buttons_disabled)
 
     # ---- NFC Divisional ----
     with cols[5]:
         st.markdown("**NFC Divisional**")
         vspace(3)
-        st.button("NFC Div Win 1", key="nfc_div_win_1", disabled=buttons_disabled)
-        st.button("NFC Div Win 2", key="nfc_div_win_2", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_div_win_1", "NFC Div Win 1"), key="nfc_div_win_1", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_div_win_2", "NFC Div Win 2"), key="nfc_div_win_2", disabled=buttons_disabled)
         vspace(9)
-        st.button("NFC Div Win 3", key="nfc_div_win_3", disabled=buttons_disabled)
-        st.button("NFC Div Win 4", key="nfc_div_win_4", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_div_win_3", "NFC Div Win 3"), key="nfc_div_win_3", disabled=buttons_disabled)
+        st.button(get_bracket_label("nfc_div_win_4", "NFC Div Win 4"), key="nfc_div_win_4", disabled=buttons_disabled)
 
     # ---- NFC Wild / Bye ----
     with cols[6]:
@@ -380,7 +392,7 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("NFC Bye", available, index=idx, key="nfc_bye", label_visibility="collapsed")
         else:
-            st.button("NFC Bye", key="nfc_bye_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_bye", "NFC Bye"), key="nfc_bye_btn", disabled=buttons_disabled)
         st.markdown("Bye Week")
         vspace(1)
         if manual_mode:
@@ -394,8 +406,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="nfc_wild2", label_visibility="collapsed")
         else:
-            st.button("NFC_Wild1", key="nfc_wild1_btn", disabled=buttons_disabled)
-            st.button("NFC_Wild2", key="nfc_wild2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild1", "NFC Wild 1"), key="nfc_wild1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild2", "NFC Wild 2"), key="nfc_wild2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild3")
@@ -408,8 +420,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="nfc_wild4", label_visibility="collapsed")
         else:
-            st.button("NFC_Div1", key="nfc_div1_btn", disabled=buttons_disabled)
-            st.button("NFC_Div2", key="nfc_div2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild3", "NFC Wild 3"), key="nfc_div1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild4", "NFC Wild 4"), key="nfc_div2_btn", disabled=buttons_disabled)
         vspace(1)
         if manual_mode:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild5")
@@ -422,8 +434,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="nfc_wild6", label_visibility="collapsed")
         else:
-            st.button("NFC_Conf1", key="nfc_conf1_btn", disabled=buttons_disabled)
-            st.button("NFC_Conf2", key="nfc_conf2_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild5", "NFC Wild 5"), key="nfc_conf1_btn", disabled=buttons_disabled)
+            st.button(get_bracket_label("nfc_wild6", "NFC Wild 6"), key="nfc_conf2_btn", disabled=buttons_disabled)
 
     # ---- CONTROLS SECTION (wider, centered below) ----
     control_cols = st.columns([2.8, 5, 3.3])
@@ -473,7 +485,45 @@ if st.session_state.flow == "predicting":
                 "and predict the Super Bowl champion.")
                 vspace(1)
                 if st.button("Predict Bracket", use_container_width=True, key="predict_automl"):
-                    pass
+                    if not st.session_state.selected_model:
+                        st.warning("Choose a saved model version first.")
+                    else:
+                        with st.spinner("Running AutoML bracket prediction..."):
+                            try:
+                                # Import bracket predictor
+                                from bracket_predictor import run_automl_bracket
+                                from training_model import merge_data
+                                
+                                # Load models
+                                models = load_model_version(st.session_state.selected_model)
+                                if not models.get("model1") or not models.get("model2"):
+                                    st.error("Missing model files. Please train or select a valid model with both model1 and model2.")
+                                else:
+                                    # Load data
+                                    df_full = merge_data("data_files")
+                                    
+                                    # Determine the latest available season from the data
+                                    available_seasons = sorted(df_full['season'].dropna().unique())
+                                    if not available_seasons:
+                                        st.error("No season data found in data files.")
+                                    else:
+                                        current_season = int(available_seasons[-1])  # Use latest available
+                                        
+                                        # Run bracket prediction
+                                        result = run_automl_bracket(models, df_full, current_season)
+                                        
+                                        # Store results
+                                        st.session_state.bracket_result = result
+                                        st.session_state.bracket_filled = True
+                                        st.rerun()
+                            except Exception as e:
+                                st.error(f"Bracket prediction failed: {str(e)}")
+                
+                # Show champion if bracket is filled
+                if st.session_state.bracket_filled and st.session_state.bracket_result:
+                    champion = st.session_state.bracket_result.get("champion")
+                    if champion:
+                        st.success(f"🏆 Predicted Champion: {champion}")
             else:
                 st.markdown("#### Manual Selection")
                 st.write(
@@ -518,7 +568,7 @@ if st.session_state.flow == "training":
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         
         from Scraping_Data import scrape_nfl_data
-        from Predictor import train_models
+        from training_model import train_models
         
         # Display containers for live updates
         # Initial pause requested by user before showing Scraping header

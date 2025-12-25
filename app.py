@@ -261,21 +261,30 @@ if st.session_state.flow == "predicting":
 
     # Get currently selected AFC teams
     afc_selected = []
+    afc_team_seeds = {}  # For manual bracket: seed -> team name
     if manual_mode:
         afc_keys = ["afc_bye", "afc_wild1", "afc_wild2", "afc_wild3", "afc_wild4", "afc_wild5", "afc_wild6"]
-        for key in afc_keys:
+        for i, key in enumerate(afc_keys):
             val = st.session_state.get(key, "-- Choose a team --")
             if val and val != "-- Choose a team --":
                 afc_selected.append(val)
+                afc_team_seeds[i + 1] = val  # Seed 1 = bye, 2-7 = wild cards
 
     # Get currently selected NFC teams
     nfc_selected = []
+    nfc_team_seeds = {}  # For manual bracket: seed -> team name
     if manual_mode:
         nfc_keys = ["nfc_bye", "nfc_wild1", "nfc_wild2", "nfc_wild3", "nfc_wild4", "nfc_wild5", "nfc_wild6"]
-        for key in nfc_keys:
+        for i, key in enumerate(nfc_keys):
             val = st.session_state.get(key, "-- Choose a team --")
             if val and val != "-- Choose a team --":
                 nfc_selected.append(val)
+                nfc_team_seeds[i + 1] = val  # Seed 1 = bye, 2-7 = wild cards
+
+    # Check if all teams are selected for manual mode
+    all_afc_selected = len(afc_selected) == 7
+    all_nfc_selected = len(nfc_selected) == 7
+    manual_teams_complete = all_afc_selected and all_nfc_selected
 
     # ALL BUTTONS DISABLED UNLESS BRACKET IS FILLED
     buttons_disabled = not st.session_state.bracket_filled
@@ -531,8 +540,62 @@ if st.session_state.flow == "predicting":
                 "This mode uses only the playoff bracket model to simulate each round "
                 "from the Wild Card through the Super Bowl and determine the champion.")
                 vspace(1)
-                if st.button("Predict Bracket", use_container_width=True, key="predict_manual"):
-                    pass
+                
+                # Button disabled until all 14 teams selected
+                predict_manual_disabled = not manual_teams_complete
+                if st.button("Predict Bracket", use_container_width=True, key="predict_manual", disabled=predict_manual_disabled):
+                    if not st.session_state.selected_model:
+                        st.warning("Choose a saved model version first.")
+                    else:
+                        with st.spinner("Running bracket simulation..."):
+                            try:
+                                # Import bracket predictor
+                                from bracket_predictor import run_manual_bracket
+                                from training_model import merge_data
+                                
+                                # Load models (only need model2)
+                                models = load_model_version(st.session_state.selected_model)
+                                if not models.get("model2"):
+                                    st.error("Missing Model 2 (Bracket Predictor). Please train or select a valid model.")
+                                else:
+                                    # Load data
+                                    df_full = merge_data("data_files")
+                                    
+                                    # Determine the latest available season from the data
+                                    available_seasons = sorted(df_full['season'].dropna().unique())
+                                    if not available_seasons:
+                                        st.error("No season data found in data files.")
+                                    else:
+                                        current_season = int(available_seasons[-1])
+                                        
+                                        # Run manual bracket prediction
+                                        result = run_manual_bracket(
+                                            models["model2"],
+                                            df_full,
+                                            current_season,
+                                            afc_team_seeds,
+                                            nfc_team_seeds
+                                        )
+                                        
+                                        # Store results
+                                        st.session_state.bracket_result = result
+                                        st.session_state.bracket_filled = True
+                                        st.rerun()
+                            except Exception as e:
+                                st.error(f"Bracket prediction failed: {str(e)}")
+                
+                # Show validation message if teams incomplete
+                if not manual_teams_complete:
+                    missing_afc = 7 - len(afc_selected)
+                    missing_nfc = 7 - len(nfc_selected)
+                    if missing_afc > 0 or missing_nfc > 0:
+                        st.info(f"Select {missing_afc} more AFC team(s) and {missing_nfc} more NFC team(s) to enable prediction.")
+                
+                # Show champion if bracket is filled
+                if st.session_state.bracket_filled and st.session_state.bracket_result:
+                    champion = st.session_state.bracket_result.get("champion")
+                    if champion:
+                        st.success(f"🏆 Predicted Champion: {champion}")
 
 # ---- TRAINING state ----
 if st.session_state.flow == "training":

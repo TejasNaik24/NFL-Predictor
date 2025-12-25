@@ -602,3 +602,165 @@ def run_automl_bracket(
         progress_callback(f"Prediction complete! Champion: {champion}", "success")
     
     return result
+
+
+def run_manual_bracket(
+    model2,
+    df_full: pd.DataFrame,
+    current_season: int,
+    afc_teams: Dict[int, str],
+    nfc_teams: Dict[int, str],
+    progress_callback: Optional[callable] = None
+) -> Dict[str, Any]:
+    """
+    Run bracket prediction using user-selected teams and only Model 2.
+    
+    Args:
+        model2: Trained bracket predictor model (only model needed)
+        df_full: Full DataFrame with all game data
+        current_season: Season year for stats
+        afc_teams: Dict mapping seed (1-7) to team full name for AFC
+        nfc_teams: Dict mapping seed (1-7) to team full name for NFC
+        progress_callback: Optional callback for progress updates
+        
+    Returns:
+        Dict with bracket results including:
+        - afc_seeds: Dict[int, str] mapping seed to team
+        - nfc_seeds: Dict[int, str] mapping seed to team
+        - bracket_slots: Dict mapping UI slot keys to team names
+        - champion: Super Bowl winner
+    """
+    if model2 is None:
+        raise ValueError("Model 2 (Bracket Predictor) is required")
+    
+    result = {
+        'afc_seeds': afc_teams,
+        'nfc_seeds': nfc_teams,
+        'wild_card_results': [],
+        'divisional_results': [],
+        'conference_results': {},
+        'super_bowl_result': {},
+        'champion': None,
+        'bracket_slots': {},
+        'probabilities': {}
+    }
+    
+    # Compute team stats (needed for matchup features)
+    if progress_callback:
+        progress_callback("Computing team statistics...", "info")
+    
+    team_stats = compute_team_stats_for_season(df_full, current_season)
+    elo_dict = compute_elo_ratings(df_full, current_season)
+    
+    # Use user-provided seedings
+    afc_seeds = afc_teams
+    nfc_seeds = nfc_teams
+    
+    # Fill bracket slots for initial seeding
+    result['bracket_slots']['afc_bye'] = afc_seeds[1]
+    result['bracket_slots']['nfc_bye'] = nfc_seeds[1]
+    
+    # Wild card matchups: 2v7, 3v6, 4v5
+    for i, (high, low) in enumerate([(2, 7), (3, 6), (4, 5)], 1):
+        result['bracket_slots'][f'afc_wild{i*2-1}'] = afc_seeds[high]
+        result['bracket_slots'][f'afc_wild{i*2}'] = afc_seeds[low]
+        result['bracket_slots'][f'nfc_wild{i*2-1}'] = nfc_seeds[high]
+        result['bracket_slots'][f'nfc_wild{i*2}'] = nfc_seeds[low]
+    
+    # Simulate Wild Card Round
+    if progress_callback:
+        progress_callback("Simulating Wild Card round...", "info")
+    
+    afc_wc_winners = []
+    nfc_wc_winners = []
+    
+    # AFC Wild Card: 2v7, 3v6, 4v5
+    for high, low in [(2, 7), (3, 6), (4, 5)]:
+        winner, prob = simulate_game(model2, afc_seeds[high], afc_seeds[low], team_stats, elo_dict)
+        afc_wc_winners.append(winner)
+        result['wild_card_results'].append({
+            'matchup': f"{afc_seeds[high]} vs {afc_seeds[low]}",
+            'winner': winner,
+            'probability': prob
+        })
+    
+    # NFC Wild Card: 2v7, 3v6, 4v5
+    for high, low in [(2, 7), (3, 6), (4, 5)]:
+        winner, prob = simulate_game(model2, nfc_seeds[high], nfc_seeds[low], team_stats, elo_dict)
+        nfc_wc_winners.append(winner)
+        result['wild_card_results'].append({
+            'matchup': f"{nfc_seeds[high]} vs {nfc_seeds[low]}",
+            'winner': winner,
+            'probability': prob
+        })
+    
+    # Simulate Divisional Round
+    if progress_callback:
+        progress_callback("Simulating Divisional round...", "info")
+    
+    # AFC Divisional: 1 seed vs lowest remaining, other two WC winners play
+    wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
+    afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
+    
+    # 1 seed plays lowest remaining seed
+    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
+    # Other two WC winners play each other
+    afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
+    
+    result['bracket_slots']['afc_div_win_1'] = afc_div1_winner
+    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[-1]
+    result['bracket_slots']['afc_div_win_3'] = afc_div2_winner
+    result['bracket_slots']['afc_div_win_4'] = afc_wc_sorted[0] if afc_wc_sorted[0] != afc_div2_winner else afc_wc_sorted[1]
+    
+    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
+    result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
+    
+    # NFC Divisional
+    nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
+    nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
+    
+    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
+    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
+    
+    result['bracket_slots']['nfc_div_win_1'] = nfc_div1_winner
+    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[-1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_div2_winner
+    result['bracket_slots']['nfc_div_win_4'] = nfc_wc_sorted[0] if nfc_wc_sorted[0] != nfc_div2_winner else nfc_wc_sorted[1]
+    
+    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
+    result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
+    
+    # Simulate Conference Championships
+    if progress_callback:
+        progress_callback("Simulating Conference Championships...", "info")
+    
+    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
+    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
+    
+    result['bracket_slots']['afc_conf_win_1'] = afc_champ
+    result['bracket_slots']['afc_conf_win_2'] = afc_div1_winner if afc_div1_winner != afc_champ else afc_div2_winner
+    result['bracket_slots']['nfc_conf_win_1'] = nfc_champ
+    result['bracket_slots']['nfc_conf_win_2'] = nfc_div1_winner if nfc_div1_winner != nfc_champ else nfc_div2_winner
+    
+    result['conference_results']['AFC'] = {'winner': afc_champ, 'probability': afc_prob}
+    result['conference_results']['NFC'] = {'winner': nfc_champ, 'probability': nfc_prob}
+    
+    # Simulate Super Bowl
+    if progress_callback:
+        progress_callback("Simulating Super Bowl...", "info")
+    
+    champion, sb_prob = simulate_game(model2, afc_champ, nfc_champ, team_stats, elo_dict)
+    
+    result['bracket_slots']['sb_team_a'] = afc_champ
+    result['bracket_slots']['sb_team_b'] = nfc_champ
+    result['super_bowl_result'] = {
+        'matchup': f"{afc_champ} vs {nfc_champ}",
+        'winner': champion,
+        'probability': sb_prob
+    }
+    result['champion'] = champion
+    
+    if progress_callback:
+        progress_callback(f"Prediction complete! Champion: {champion}", "success")
+    
+    return result

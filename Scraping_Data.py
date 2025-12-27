@@ -40,7 +40,7 @@ def scrape_nfl_data(
         os.makedirs(folder_name)
     
     # Determine current season
-    current_year = datetime.now().year
+    current_year = datetime.now().year - 5
     current_month = datetime.now().month
     current_season = current_year - 1 if current_month in [1, 2] else current_year
     

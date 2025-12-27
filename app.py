@@ -120,6 +120,10 @@ if "bracket_result" not in st.session_state:
     st.session_state.bracket_result = None  # AutoML bracket prediction results
 if "bracket_filled" not in st.session_state:
     st.session_state.bracket_filled = False  # Whether bracket has been filled by AutoML
+if "automl_predicting" not in st.session_state:
+    st.session_state.automl_predicting = False
+if "manual_predicting" not in st.session_state:
+    st.session_state.manual_predicting = False
 
 # ---- Centered Title (ALWAYS VISIBLE) ----
 col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -203,6 +207,9 @@ if st.session_state.clicked and st.session_state.flow is None:
                     if st.button("Predict Selected Model"):
                         # Set session state to the selected version folder name
                         st.session_state.selected_model = model_choice
+                        # Reset bracket results when a new model is selected
+                        st.session_state.bracket_result = None
+                        st.session_state.bracket_filled = False
                         st.session_state.flow = "predicting"
                         st.rerun()
                         
@@ -469,6 +476,9 @@ if st.session_state.flow == "predicting":
             # Update session state and rerun if mode changed
             if mode != st.session_state.control_mode:
                 st.session_state.control_mode = mode
+                # Reset bracket results when switching modes
+                st.session_state.bracket_result = None
+                st.session_state.bracket_filled = False
                 st.rerun()
             
             st.markdown("---")
@@ -482,6 +492,8 @@ if st.session_state.flow == "predicting":
                     if st.button("Choose a different model", key="change_model"):
                         st.session_state.flow = None
                         st.session_state.clicked = True
+                        st.session_state.bracket_result = None
+                        st.session_state.bracket_filled = False
                         st.rerun()
             
             st.markdown("---")
@@ -493,12 +505,27 @@ if st.session_state.flow == "predicting":
                 "one to determine which teams qualify for the postseason, and another to simulate each round "
                 "and predict the Super Bowl champion.")
                 vspace(1)
-                if st.button("Predict Bracket", use_container_width=True, key="predict_automl"):
+                # Define button state based on processing status
+                automl_btn_label = "Predicting..." if st.session_state.automl_predicting else "Predict Bracket"
+                automl_btn_disabled = st.session_state.automl_predicting
+                
+                if st.button(automl_btn_label, use_container_width=True, key="predict_automl", disabled=automl_btn_disabled):
                     if not st.session_state.selected_model:
                         st.warning("Choose a saved model version first.")
                     else:
+                        st.session_state.automl_predicting = True
+                        st.rerun()
+                
+                # Logic runs if state is True (after rerun)
+                if st.session_state.automl_predicting:
+                    if not st.session_state.selected_model:
+                         # Should be caught above, but safety check
+                         st.session_state.automl_predicting = False
+                         st.rerun()
+                    else:
                         with st.spinner("Running AutoML bracket prediction..."):
                             try:
+                                import time
                                 # Import bracket predictor
                                 from bracket_predictor import run_automl_bracket
                                 from training_model import merge_data
@@ -507,6 +534,9 @@ if st.session_state.flow == "predicting":
                                 models = load_model_version(st.session_state.selected_model)
                                 if not models.get("model1") or not models.get("model2"):
                                     st.error("Missing model files. Please train or select a valid model with both model1 and model2.")
+                                    st.session_state.automl_predicting = False
+                                    # Don't rerun immediately so user sees error? 
+                                    # Actually better to let them see error then they can try again (button resets)
                                 else:
                                     # Load data
                                     df_full = merge_data("data_files")
@@ -515,18 +545,24 @@ if st.session_state.flow == "predicting":
                                     available_seasons = sorted(df_full['season'].dropna().unique())
                                     if not available_seasons:
                                         st.error("No season data found in data files.")
+                                        st.session_state.automl_predicting = False
                                     else:
                                         current_season = int(available_seasons[-1])  # Use latest available
                                         
                                         # Run bracket prediction
                                         result = run_automl_bracket(models, df_full, current_season)
                                         
+                                        # Add delay to show the spinner animation longer
+                                        time.sleep(2)
+                                        
                                         # Store results
                                         st.session_state.bracket_result = result
                                         st.session_state.bracket_filled = True
+                                        st.session_state.automl_predicting = False
                                         st.rerun()
                             except Exception as e:
                                 st.error(f"Bracket prediction failed: {str(e)}")
+                                st.session_state.automl_predicting = False
                 
                 # Show champion if bracket is filled
                 if st.session_state.bracket_filled and st.session_state.bracket_result:
@@ -541,14 +577,26 @@ if st.session_state.flow == "predicting":
                 "from the Wild Card through the Super Bowl and determine the champion.")
                 vspace(1)
                 
-                # Button disabled until all 14 teams selected
-                predict_manual_disabled = not manual_teams_complete
-                if st.button("Predict Bracket", use_container_width=True, key="predict_manual", disabled=predict_manual_disabled):
+                # Button disabled until all 14 teams selected OR if currently predicting
+                predict_manual_disabled = (not manual_teams_complete) or st.session_state.manual_predicting
+                manual_btn_label = "Predicting..." if st.session_state.manual_predicting else "Predict Bracket"
+                
+                if st.button(manual_btn_label, use_container_width=True, key="predict_manual", disabled=predict_manual_disabled):
                     if not st.session_state.selected_model:
                         st.warning("Choose a saved model version first.")
                     else:
+                        st.session_state.manual_predicting = True
+                        st.rerun()
+                
+                # Logic runs if state is True (after rerun)
+                if st.session_state.manual_predicting:
+                    if not st.session_state.selected_model:
+                         st.session_state.manual_predicting = False
+                         st.rerun()
+                    else:
                         with st.spinner("Running bracket simulation..."):
                             try:
+                                import time
                                 # Import bracket predictor
                                 from bracket_predictor import run_manual_bracket
                                 from training_model import merge_data
@@ -557,6 +605,7 @@ if st.session_state.flow == "predicting":
                                 models = load_model_version(st.session_state.selected_model)
                                 if not models.get("model2"):
                                     st.error("Missing Model 2 (Bracket Predictor). Please train or select a valid model.")
+                                    st.session_state.manual_predicting = False
                                 else:
                                     # Load data
                                     df_full = merge_data("data_files")
@@ -565,6 +614,7 @@ if st.session_state.flow == "predicting":
                                     available_seasons = sorted(df_full['season'].dropna().unique())
                                     if not available_seasons:
                                         st.error("No season data found in data files.")
+                                        st.session_state.manual_predicting = False
                                     else:
                                         current_season = int(available_seasons[-1])
                                         
@@ -577,19 +627,18 @@ if st.session_state.flow == "predicting":
                                             nfc_team_seeds
                                         )
                                         
+                                        # Add delay to show the spinner animation longer
+                                        time.sleep(2)
+                                        
                                         # Store results
                                         st.session_state.bracket_result = result
                                         st.session_state.bracket_filled = True
+                                        st.session_state.manual_predicting = False
                                         st.rerun()
                             except Exception as e:
                                 st.error(f"Bracket prediction failed: {str(e)}")
+                                st.session_state.manual_predicting = False
                 
-                # Show validation message if teams incomplete
-                if not manual_teams_complete:
-                    missing_afc = 7 - len(afc_selected)
-                    missing_nfc = 7 - len(nfc_selected)
-                    if missing_afc > 0 or missing_nfc > 0:
-                        st.info(f"Select {missing_afc} more AFC team(s) and {missing_nfc} more NFC team(s) to enable prediction.")
                 
                 # Show champion if bracket is filled
                 if st.session_state.bracket_filled and st.session_state.bracket_result:

@@ -540,15 +540,16 @@ def run_automl_bracket(
     wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
     afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
     
+    # Fill divisional round slots with WC winners (before simulation)
+    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
+    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
+    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
+    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    
     # 1 seed plays lowest remaining seed
     afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
     # Other two WC winners play each other
     afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
-    
-    result['bracket_slots']['afc_div_win_1'] = afc_div1_winner
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[-1]
-    result['bracket_slots']['afc_div_win_3'] = afc_div2_winner
-    result['bracket_slots']['afc_div_win_4'] = afc_wc_sorted[0] if afc_wc_sorted[0] != afc_div2_winner else afc_wc_sorted[1]
     
     result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
     result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
@@ -557,13 +558,14 @@ def run_automl_bracket(
     nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
     nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
     
+    # Fill divisional round slots with WC winners (before simulation)
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
+    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
+    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    
     nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
     nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
-    
-    result['bracket_slots']['nfc_div_win_1'] = nfc_div1_winner
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[-1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_div2_winner
-    result['bracket_slots']['nfc_div_win_4'] = nfc_wc_sorted[0] if nfc_wc_sorted[0] != nfc_div2_winner else nfc_wc_sorted[1]
     
     result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
     result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
@@ -702,15 +704,16 @@ def run_manual_bracket(
     wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
     afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
     
+    # Fill divisional round slots with WC winners (before simulation)
+    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
+    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
+    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
+    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    
     # 1 seed plays lowest remaining seed
     afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
     # Other two WC winners play each other
     afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
-    
-    result['bracket_slots']['afc_div_win_1'] = afc_div1_winner
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[-1]
-    result['bracket_slots']['afc_div_win_3'] = afc_div2_winner
-    result['bracket_slots']['afc_div_win_4'] = afc_wc_sorted[0] if afc_wc_sorted[0] != afc_div2_winner else afc_wc_sorted[1]
     
     result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
     result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
@@ -719,13 +722,14 @@ def run_manual_bracket(
     nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
     nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
     
+    # Fill divisional round slots with WC winners (before simulation)
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
+    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
+    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    
     nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
     nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
-    
-    result['bracket_slots']['nfc_div_win_1'] = nfc_div1_winner
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[-1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_div2_winner
-    result['bracket_slots']['nfc_div_win_4'] = nfc_wc_sorted[0] if nfc_wc_sorted[0] != nfc_div2_winner else nfc_wc_sorted[1]
     
     result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
     result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})

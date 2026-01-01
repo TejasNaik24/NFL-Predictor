@@ -375,6 +375,37 @@ def train_models(
             m2_file = os.path.join(version_path, "model2_bracket.pkl")
             joblib.dump(model2, m2_file)
         
+        # -------------------------
+        # Export precomputed features for inference
+        # -------------------------
+        try:
+            from bracket_predictor import compute_team_stats_for_season, compute_elo_ratings
+            from datetime import datetime
+            
+            # Get latest season from data
+            latest_season = int(df_full['season'].max())
+            
+            # Compute and save team stats
+            precomputed_team_stats = compute_team_stats_for_season(df_full, latest_season)
+            joblib.dump(precomputed_team_stats, os.path.join(version_path, "precomputed_team_stats.pkl"))
+            
+            # Compute and save ELO ratings
+            precomputed_elo = compute_elo_ratings(df_full, latest_season)
+            joblib.dump(precomputed_elo, os.path.join(version_path, "precomputed_elo_ratings.pkl"))
+            
+            # Save metadata
+            metadata = {
+                "latest_season": latest_season,
+                "created_at": datetime.now().isoformat(),
+                "has_inference_data": True,
+                "model_version": version_folder
+            }
+            with open(os.path.join(version_path, "metadata.json"), "w") as f:
+                json.dump(metadata, f, indent=2)
+        except Exception as e:
+            # Don't fail training if inference data export fails
+            log(f"Warning: Could not export inference data: {str(e)}", "info")
+        
         # Return results
         return {
             "model1": {

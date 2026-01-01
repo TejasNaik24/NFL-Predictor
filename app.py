@@ -101,10 +101,42 @@ def load_model_version(version_folder: str, models_dir: str = "models") -> Dict[
         except Exception as e:
             st.warning(f"Failed to load model2 from {model2_file}: {e}")
     
+    # Load precomputed inference features if they exist
+    precomputed_team_stats = None
+    precomputed_elo = None
+    metadata = None
+    
+    team_stats_file = version_path / "precomputed_team_stats.pkl"
+    elo_file = version_path / "precomputed_elo_ratings.pkl"
+    metadata_file = version_path / "metadata.json"
+    
+    if team_stats_file.exists():
+        try:
+            precomputed_team_stats = joblib.load(team_stats_file)
+        except Exception as e:
+            st.warning(f"Failed to load precomputed team stats: {e}")
+    
+    if elo_file.exists():
+        try:
+            precomputed_elo = joblib.load(elo_file)
+        except Exception as e:
+            st.warning(f"Failed to load precomputed ELO ratings: {e}")
+    
+    if metadata_file.exists():
+        try:
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+        except Exception as e:
+            st.warning(f"Failed to load metadata: {e}")
+    
     return {
         "model1": model1,
         "model2": model2,
-        "path": str(version_path.absolute())
+        "path": str(version_path.absolute()),
+        "precomputed_team_stats": precomputed_team_stats,
+        "precomputed_elo_ratings": precomputed_elo,
+        "metadata": metadata,
+        "has_inference_data": precomputed_team_stats is not None and precomputed_elo is not None
     }
 
 # ---- Session state ----
@@ -527,30 +559,28 @@ if st.session_state.flow == "predicting":
                             try:
                                 import time
                                 # Import bracket predictor
-                                from bracket_predictor import run_automl_bracket
-                                from training_model import merge_data
+                                from bracket_predictor import run_automl_bracket_inference
                                 
                                 # Load models
                                 models = load_model_version(st.session_state.selected_model)
                                 if not models.get("model1") or not models.get("model2"):
                                     st.error("Missing model files. Please train or select a valid model with both model1 and model2.")
                                     st.session_state.automl_predicting = False
-                                    # Don't rerun immediately so user sees error? 
-                                    # Actually better to let them see error then they can try again (button resets)
                                 else:
-                                    # Load data
-                                    df_full = merge_data("data_files")
-                                    
-                                    # Determine the latest available season from the data
-                                    available_seasons = sorted(df_full['season'].dropna().unique())
-                                    if not available_seasons:
-                                        st.error("No season data found in data files.")
-                                        st.session_state.automl_predicting = False
-                                    else:
-                                        current_season = int(available_seasons[-1])  # Use latest available
+                                    # Check if precomputed features exist (inference-only mode)
+                                    if models.get("has_inference_data"):
+                                        # INFERENCE MODE: Use precomputed features (no CSV dependency)
+                                        metadata = models.get("metadata", {})
+                                        current_season = metadata.get("latest_season", 2024)
                                         
-                                        # Run bracket prediction
-                                        result = run_automl_bracket(models, df_full, current_season)
+                                        # Run inference-only bracket prediction
+                                        result = run_automl_bracket_inference(
+                                            models["model1"],
+                                            models["model2"],
+                                            models["precomputed_team_stats"],
+                                            models["precomputed_elo_ratings"],
+                                            current_season
+                                        )
                                         
                                         # Add delay to show the spinner animation longer
                                         time.sleep(2)
@@ -560,6 +590,17 @@ if st.session_state.flow == "predicting":
                                         st.session_state.bracket_filled = True
                                         st.session_state.automl_predicting = False
                                         st.rerun()
+                                    else:
+                                        # FAIL FAST: Model lacks inference data
+                                        st.error(
+                                            "⚠️ **This model lacks inference data.**\n\n"
+                                            "This model was exported without precomputed features and cannot run predictions without CSV files.\n\n"
+                                            "**Options:**\n"
+                                            "1. Train a new model (it will include inference data)\n"
+                                            "2. Place CSV files in `data_files/` folder and re-select this model\n"
+                                            "3. Delete this model folder and use a newer model"
+                                        )
+                                        st.session_state.automl_predicting = False
                             except Exception as e:
                                 st.error(f"Bracket prediction failed: {str(e)}")
                                 st.session_state.automl_predicting = False
@@ -598,8 +639,7 @@ if st.session_state.flow == "predicting":
                             try:
                                 import time
                                 # Import bracket predictor
-                                from bracket_predictor import run_manual_bracket
-                                from training_model import merge_data
+                                from bracket_predictor import run_manual_bracket_inference
                                 
                                 # Load models (only need model2)
                                 models = load_model_version(st.session_state.selected_model)
@@ -607,21 +647,17 @@ if st.session_state.flow == "predicting":
                                     st.error("Missing Model 2 (Bracket Predictor). Please train or select a valid model.")
                                     st.session_state.manual_predicting = False
                                 else:
-                                    # Load data
-                                    df_full = merge_data("data_files")
-                                    
-                                    # Determine the latest available season from the data
-                                    available_seasons = sorted(df_full['season'].dropna().unique())
-                                    if not available_seasons:
-                                        st.error("No season data found in data files.")
-                                        st.session_state.manual_predicting = False
-                                    else:
-                                        current_season = int(available_seasons[-1])
+                                    # Check if precomputed features exist (inference-only mode)
+                                    if models.get("has_inference_data"):
+                                        # INFERENCE MODE: Use precomputed features (no CSV dependency)
+                                        metadata = models.get("metadata", {})
+                                        current_season = metadata.get("latest_season", 2024)
                                         
-                                        # Run manual bracket prediction
-                                        result = run_manual_bracket(
+                                        # Run inference-only bracket prediction
+                                        result = run_manual_bracket_inference(
                                             models["model2"],
-                                            df_full,
+                                            models["precomputed_team_stats"],
+                                            models["precomputed_elo_ratings"],
                                             current_season,
                                             afc_team_seeds,
                                             nfc_team_seeds
@@ -635,6 +671,17 @@ if st.session_state.flow == "predicting":
                                         st.session_state.bracket_filled = True
                                         st.session_state.manual_predicting = False
                                         st.rerun()
+                                    else:
+                                        # FAIL FAST: Model lacks inference data
+                                        st.error(
+                                            "⚠️ **This model lacks inference data.**\n\n"
+                                            "This model was exported without precomputed features and cannot run predictions without CSV files.\n\n"
+                                            "**Options:**\n"
+                                            "1. Train a new model (it will include inference data)\n"
+                                            "2. Place CSV files in `data_files/` folder and re-select this model\n"
+                                            "3. Delete this model folder and use a newer model"
+                                        )
+                                        st.session_state.manual_predicting = False
                             except Exception as e:
                                 st.error(f"Bracket prediction failed: {str(e)}")
                                 st.session_state.manual_predicting = False

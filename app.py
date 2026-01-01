@@ -531,7 +531,7 @@ if "clicked" not in st.session_state:
 if "flow" not in st.session_state:
     st.session_state.flow = None  # None | "predicting" | "training"
 if "control_mode" not in st.session_state:
-    st.session_state.control_mode = "Choose Teams"  # Default to Choose Team so dropdowns are enabled
+    st.session_state.control_mode = "AutoML"  # Default to AutoML mode
 if "selected_model" not in st.session_state:
     st.session_state.selected_model = None  # Track which model was selected
 if "bracket_result" not in st.session_state:

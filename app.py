@@ -3,18 +3,404 @@ import os
 import re
 import joblib
 import json
+import pandas as pd
+import numpy as np
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Any
 
 # ---- config ----
 icon_path = os.path.join("static", "nfl.png")
 st.set_page_config(page_title="NFL Predictor", page_icon=icon_path, layout="wide")
 
+# ===================================================================
+# INTERACTIVE BRACKET HELPERS
+# ===================================================================
+# Usage: After AutoML prediction, buttons become clickable.
+# Click any enabled button to see game details modal with:
+# - Matchup win probabilities (Model 2)
+# - Playoff probabilities (Model 1)
+# - Top 5 feature contributions
+# - Visual charts and explanations
+# ===================================================================
+
 # ---- helpers ----
 def vspace(n: int):
     for _ in range(n):
         st.write("")
+
+
+def determine_button_enabled(slot_key: str, result: Dict) -> Tuple[bool, Optional[str]]:
+    """
+    Determine if a bracket button should be enabled and what team to display.
+    
+    Only enable buttons for teams that WON their game (have game stats to show).
+    Disable: bye teams (no game), losing teams (eliminated).
+    
+    Args:
+        slot_key: UI slot key (e.g., 'afc_wild1', 'afc_div_win_1')
+        result: Bracket prediction result dict
+        
+    Returns:
+        Tuple of (is_enabled, team_name)
+    """
+    if not result or 'bracket_slots' not in result:
+        return (False, None)
+    
+    bracket_slots = result['bracket_slots']
+    team = bracket_slots.get(slot_key)
+    
+    if not team:
+        return (False, None)
+    
+    # Bye slots: DISABLED - no game to show
+    if 'bye' in slot_key:
+        return (False, team)
+    
+    # Wild card slots: check if this team WON their wild card game
+    if 'wild' in slot_key:
+        for wc_result in result.get('wild_card_results', []):
+            winner = wc_result.get('winner')
+            if team == winner:
+                return (True, team)  # This team won - enable button
+            elif team in wc_result.get('matchup', ''):
+                return (False, team)  # This team played but lost - disable
+        return (False, team)
+    
+    # Divisional slots: check if this team WON their divisional game
+    if 'div' in slot_key:
+        for div_result in result.get('divisional_results', []):
+            winner = div_result.get('winner')
+            if team == winner:
+                return (True, team)  # This team won - enable button
+            elif team in div_result.get('matchup', ''):
+                return (False, team)  # This team played but lost - disable
+        return (False, team)
+    
+    # Conference slots: check if this team WON their conference championship
+    if 'conf' in slot_key:
+        conf = 'AFC' if 'afc' in slot_key else 'NFC'
+        conf_result = result.get('conference_results', {}).get(conf, {})
+        winner = conf_result.get('winner')
+        if team == winner:
+            return (True, team)  # Won conference - enable
+        else:
+            return (False, team)  # Lost conference - disable
+    
+    # Super Bowl slots: only the WINNER is enabled
+    if 'sb' in slot_key:
+        sb_result = result.get('super_bowl_result', {})
+        winner = sb_result.get('winner')
+        if team == winner:
+            return (True, team)  # Won Super Bowl - enable
+        else:
+            return (False, team)  # Lost Super Bowl - disable
+    
+    return (False, team)
+
+
+def get_matchup_context(slot_key: str, team_clicked: str, result: Dict, models: Dict, 
+                       team_stats: pd.DataFrame, elo_dict: Dict) -> Dict[str, Any]:
+    """
+    Get all matchup information for displaying in modal.
+    
+    Returns dict with:
+        - round_name: str
+        - team_a, team_b: str
+        - matchup_prob_a, matchup_prob_b: float
+        - playoff_prob_a, playoff_prob_b: Optional[float]
+        - top_features: List[Dict]
+        - team_a_stats, team_b_stats: Dict
+    """
+    from bracket_predictor import make_matchup_features, predict_matchup, predict_playoff_teams
+    
+    # Determine round and matchup
+    if 'wild' in slot_key or 'bye' in slot_key:
+        round_name = "Wild Card Round"
+    elif 'div' in slot_key:
+        round_name = "Divisional Round"
+    elif 'conf' in slot_key:
+        round_name = "Conference Championship"
+    elif 'sb' in slot_key:
+        round_name = "Super Bowl"
+    else:
+        round_name = "Playoff Game"
+    
+    # Find the matchup involving this team
+    team_a = team_clicked
+    team_b = None
+    
+    # Search through results to find opponent
+    if 'wild' in slot_key:
+        # Find wild card matchup
+        for wc_result in result.get('wild_card_results', []):
+            if team_clicked in wc_result['matchup']:
+                parts = wc_result['matchup'].split(' vs ')
+                team_a = parts[0]
+                team_b = parts[1]
+                matchup_prob_a = wc_result['probability'] if wc_result['winner'] == team_a else (1 - wc_result['probability'])
+                matchup_prob_b = 1 - matchup_prob_a
+                break
+    elif 'div' in slot_key:
+        # Find divisional matchup
+        for div_result in result.get('divisional_results', []):
+            if team_clicked in div_result['matchup']:
+                parts = div_result['matchup'].split(' vs ')
+                team_a = parts[0]
+                team_b = parts[1]
+                matchup_prob_a = div_result['probability'] if div_result['winner'] == team_a else (1 - div_result['probability'])
+                matchup_prob_b = 1 - matchup_prob_a
+                break
+    elif 'conf' in slot_key:
+        # Find conference championship
+        conf = 'AFC' if 'afc' in slot_key else 'NFC'
+        conf_result = result.get('conference_results', {}).get(conf, {})
+        # Get both teams from bracket slots
+        if 'afc' in slot_key:
+            teams = [result['bracket_slots'].get('afc_conf_win_1'), result['bracket_slots'].get('afc_conf_win_2')]
+        else:
+            teams = [result['bracket_slots'].get('nfc_conf_win_1'), result['bracket_slots'].get('nfc_conf_win_2')]
+        team_a = teams[0] if teams[0] else team_clicked
+        team_b = teams[1] if teams[1] else None
+        if team_b:
+            winner = conf_result.get('winner')
+            matchup_prob_a = conf_result.get('probability', 0.5) if winner == team_a else (1 - conf_result.get('probability', 0.5))
+            matchup_prob_b = 1 - matchup_prob_a
+    elif 'sb' in slot_key:
+        sb_result = result.get('super_bowl_result', {})
+        parts = sb_result.get('matchup', '').split(' vs ')
+        if len(parts) == 2:
+            team_a = parts[0]
+            team_b = parts[1]
+            winner = sb_result.get('winner')
+            matchup_prob_a = sb_result.get('probability', 0.5) if winner == team_a else (1 - sb_result.get('probability', 0.5))
+            matchup_prob_b = 1 - matchup_prob_a
+    
+    # Get playoff probabilities (Model 1) if available
+    playoff_prob_a = None
+    playoff_prob_b = None
+    
+    # First check stored playoff probabilities (for manual mode or cached results)
+    if st.session_state.get('playoff_probs_dict'):
+        playoff_prob_a = st.session_state.playoff_probs_dict.get(team_a)
+        if team_b:
+            playoff_prob_b = st.session_state.playoff_probs_dict.get(team_b)
+    
+    # If not found in stored dict, try computing from model
+    if (playoff_prob_a is None or (team_b and playoff_prob_b is None)):
+        try:
+            if models.get('model1') and team_stats is not None:
+                playoff_teams = predict_playoff_teams(models['model1'], team_stats)
+                for conf in ['AFC', 'NFC']:
+                    for team, prob in playoff_teams.get(conf, []):
+                        if team == team_a and playoff_prob_a is None:
+                            playoff_prob_a = prob
+                        if team_b and team == team_b and playoff_prob_b is None:
+                            playoff_prob_b = prob
+        except:
+            pass
+    
+    # Get feature importance if available
+    top_features = []
+    if team_b and models.get('model2') and team_stats is not None and elo_dict:
+        try:
+            X_matchup = make_matchup_features(team_stats, team_a, team_b, elo_dict)
+            
+            if hasattr(models['model2'], 'feature_importances_') and hasattr(models['model2'], 'feature_names_in_'):
+                importances = models['model2'].feature_importances_
+                feature_names = models['model2'].feature_names_in_
+                
+                # Get diff values
+                feature_contribs = []
+                for fname, importance in zip(feature_names, importances):
+                    if fname in X_matchup.columns:
+                        diff_val = X_matchup[fname].values[0]
+                        contrib = abs(diff_val) * importance
+                        feature_contribs.append({
+                            'feature': fname,
+                            'diff_value': diff_val,
+                            'importance': importance,
+                            'contribution': contrib
+                        })
+                
+                # Sort by contribution
+                feature_contribs.sort(key=lambda x: x['contribution'], reverse=True)
+                top_features = feature_contribs[:5]
+        except Exception as e:
+            st.warning(f"Could not compute feature importance: {str(e)}")
+    
+    # Get team stats
+    team_a_stats = {}
+    team_b_stats = {}
+    if team_stats is not None:
+        try:
+            a_row = team_stats[team_stats['team_full'] == team_a]
+            if not a_row.empty:
+                team_a_stats = {
+                    'points_mean': a_row['points_mean'].values[0] if 'points_mean' in a_row else None,
+                    'points_sum': a_row['points_sum'].values[0] if 'points_sum' in a_row else None,
+                    'turnover_margin': a_row['turnover_margin'].values[0] if 'turnover_margin' in a_row else None,
+                    'point_diff': a_row['point_diff'].values[0] if 'point_diff' in a_row else None,
+                }
+            
+            if team_b:
+                b_row = team_stats[team_stats['team_full'] == team_b]
+                if not b_row.empty:
+                    team_b_stats = {
+                        'points_mean': b_row['points_mean'].values[0] if 'points_mean' in b_row else None,
+                        'points_sum': b_row['points_sum'].values[0] if 'points_sum' in b_row else None,
+                        'turnover_margin': b_row['turnover_margin'].values[0] if 'turnover_margin' in b_row else None,
+                        'point_diff': b_row['point_diff'].values[0] if 'point_diff' in b_row else None,
+                    }
+        except:
+            pass
+    
+    # Add ELO
+    if elo_dict:
+        from bracket_predictor import TEAM_ABBREV_TO_FULL
+        abbrev_to_full_inv = {v: k for k, v in TEAM_ABBREV_TO_FULL.items()}
+        team_a_abbrev = abbrev_to_full_inv.get(team_a)
+        team_b_abbrev = abbrev_to_full_inv.get(team_b) if team_b else None
+        
+        if team_a_abbrev:
+            team_a_stats['elo'] = elo_dict.get(team_a_abbrev, 1500)
+        if team_b_abbrev:
+            team_b_stats['elo'] = elo_dict.get(team_b_abbrev, 1500)
+    
+    return {
+        'round_name': round_name,
+        'team_a': team_a,
+        'team_b': team_b,
+        'matchup_prob_a': matchup_prob_a if team_b else 1.0,
+        'matchup_prob_b': matchup_prob_b if team_b else 0.0,
+        'playoff_prob_a': playoff_prob_a,
+        'playoff_prob_b': playoff_prob_b,
+        'top_features': top_features,
+        'team_a_stats': team_a_stats,
+        'team_b_stats': team_b_stats
+    }
+
+
+@st.dialog("Game Details", width="large")
+def show_game_modal(context: Dict[str, Any]):
+    """Display game details modal with matchup info, probabilities, and feature explanations."""
+    
+    st.subheader(f"{context['round_name']}")
+    
+    if context['team_b']:
+        st.markdown(f"### {context['team_a']} vs {context['team_b']}")
+    else:
+        st.markdown(f"### {context['team_a']}")
+        st.info("This team advanced via bye week or has no opponent data available.")
+        return
+    
+    # Two column layout
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("#### Win Probability (Model 2)")
+        
+        # Bar chart
+        prob_data = pd.DataFrame({
+            'Team': [context['team_a'], context['team_b']],
+            'Probability': [context['matchup_prob_a'] * 100, context['matchup_prob_b'] * 100]
+        })
+        st.bar_chart(prob_data.set_index('Team'), height=200)
+        
+        # Numeric values
+        st.metric(context['team_a'], f"{context['matchup_prob_a']*100:.1f}%")
+        st.metric(context['team_b'], f"{context['matchup_prob_b']*100:.1f}%")
+        
+        # Playoff probabilities - always show for both teams
+        st.markdown("#### Playoff Probability (Model 1)")
+        if context['playoff_prob_a'] is not None:
+            st.metric(f"Chance {context['team_a']} makes playoffs", f"{context['playoff_prob_a']*100:.1f}%")
+        else:
+            st.metric(f"Chance {context['team_a']} makes playoffs", "N/A")
+        
+        if context['playoff_prob_b'] is not None:
+            st.metric(f"Chance {context['team_b']} makes playoffs", f"{context['playoff_prob_b']*100:.1f}%")
+        else:
+            st.metric(f"Chance {context['team_b']} makes playoffs", "N/A")
+    
+    with col2:
+        st.markdown("#### Top Contributing Factors")
+        
+        if context['top_features']:
+            st.markdown("**Top 5 Features (by importance × magnitude)**")
+            
+            for i, feat in enumerate(context['top_features'], 1):
+                feat_name = feat['feature'].replace('diff_', '').replace('_', ' ').title()
+                diff_val = feat['diff_value']
+                sign = "+" if diff_val > 0 else ""
+                
+                st.markdown(f"{i}. **{feat_name}**: {sign}{diff_val:.2f}")
+                st.caption(f"   Importance: {feat['importance']:.4f} | Contribution: {feat['contribution']:.4f}")
+            
+            # Generate explanation
+            st.markdown("#### Model Explanation")
+            winner = context['team_a'] if context['matchup_prob_a'] > context['matchup_prob_b'] else context['team_b']
+            win_pct = max(context['matchup_prob_a'], context['matchup_prob_b']) * 100
+            
+            top_3 = context['top_features'][:3]
+            factors = []
+            for feat in top_3:
+                fname = feat['feature'].replace('diff_', '').replace('_', ' ')
+                diff_val = feat['diff_value']
+                sign_word = "advantage" if diff_val > 0 else "disadvantage"
+                factors.append(f"{fname} ({sign_word})")
+            
+            explanation = f"The model predicts **{winner}** wins with **{win_pct:.1f}%** probability. "
+            explanation += f"Key factors: {', '.join(factors)}."
+            
+            st.info(explanation)
+        else:
+            st.info("Feature importance not available for this model.")
+        
+        # Team stats
+        st.markdown("#### Season Stats Summary")
+        
+        stats_df = pd.DataFrame({
+            context['team_a']: [
+                f"{context['team_a_stats'].get('points_mean', 0):.1f}" if context['team_a_stats'].get('points_mean') is not None else "N/A",
+                f"{context['team_a_stats'].get('turnover_margin', 0):.1f}" if context['team_a_stats'].get('turnover_margin') is not None else "N/A",
+                f"{context['team_a_stats'].get('elo', 1500):.0f}" if context['team_a_stats'].get('elo') is not None else "N/A",
+            ],
+            context['team_b']: [
+                f"{context['team_b_stats'].get('points_mean', 0):.1f}" if context['team_b_stats'].get('points_mean') is not None else "N/A",
+                f"{context['team_b_stats'].get('turnover_margin', 0):.1f}" if context['team_b_stats'].get('turnover_margin') is not None else "N/A",
+                f"{context['team_b_stats'].get('elo', 1500):.0f}" if context['team_b_stats'].get('elo') is not None else "N/A",
+            ]
+        }, index=['Avg Points/Game', 'Turnover Margin', 'ELO Rating'])
+        
+        st.dataframe(stats_df, use_container_width=True)
+
+
+def render_bracket_button(slot_key: str, default_label: str, result: Dict, models: Dict, 
+                          team_stats: pd.DataFrame, elo_dict: Dict, key_suffix: str = ""):
+    """
+    Render a bracket button with click handling for game details modal.
+    
+    Args:
+        slot_key: Bracket slot key (e.g., 'afc_wild1')
+        default_label: Default label if no team assigned
+        result: Bracket result dict
+        models: Models dict
+        team_stats: Team stats DataFrame
+        elo_dict: ELO ratings dict
+        key_suffix: Optional suffix for button key uniqueness
+    """
+    enabled, team = determine_button_enabled(slot_key, result)
+    label = team if team else default_label
+    button_key = f"btn_{slot_key}{key_suffix}"
+    
+    if st.button(label, key=button_key, disabled=not enabled):
+        if team and models and team_stats is not None and elo_dict:
+            try:
+                context = get_matchup_context(slot_key, team, result, models, team_stats, elo_dict)
+                show_game_modal(context)
+            except Exception as e:
+                st.error(f"Could not load game details: {str(e)}")
 
 
 def list_model_versions(models_dir: str = "models") -> List[str]:
@@ -156,6 +542,18 @@ if "automl_predicting" not in st.session_state:
     st.session_state.automl_predicting = False
 if "manual_predicting" not in st.session_state:
     st.session_state.manual_predicting = False
+if "manual_bracket_predicted" not in st.session_state:
+    st.session_state.manual_bracket_predicted = False  # Whether manual bracket has been predicted and should show buttons
+# Interactive bracket state
+if "bracket_models" not in st.session_state:
+    st.session_state.bracket_models = None
+if "bracket_team_stats" not in st.session_state:
+    st.session_state.bracket_team_stats = None
+if "bracket_elo_dict" not in st.session_state:
+    st.session_state.bracket_elo_dict = None
+if "playoff_probs_dict" not in st.session_state:
+    st.session_state.playoff_probs_dict = {}
+
 
 # ---- Centered Title (ALWAYS VISIBLE) ----
 col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -298,10 +696,14 @@ if st.session_state.flow == "predicting":
         current_value = st.session_state.get(current_key, "-- Choose a team --")
         return [t for t in full_list if t == "-- Choose a team --" or t not in selected_list or t == current_value]
 
+    # Determine if manual mode is active (and not yet predicted)
+    # If manual bracket is predicted, show buttons instead of dropdowns
+    manual_show_dropdowns = manual_mode and not st.session_state.manual_bracket_predicted
+    
     # Get currently selected AFC teams
     afc_selected = []
     afc_team_seeds = {}  # For manual bracket: seed -> team name
-    if manual_mode:
+    if manual_show_dropdowns:
         # Map UI keys to actual playoff seeds
         afc_key_to_seed = {
             "afc_bye": 1,    # #1 seed gets bye
@@ -321,7 +723,7 @@ if st.session_state.flow == "predicting":
     # Get currently selected NFC teams
     nfc_selected = []
     nfc_team_seeds = {}  # For manual bracket: seed -> team name
-    if manual_mode:
+    if manual_show_dropdowns:
         # Map UI keys to actual playoff seeds
         nfc_key_to_seed = {
             "nfc_bye": 1,    # #1 seed gets bye
@@ -343,8 +745,14 @@ if st.session_state.flow == "predicting":
     all_nfc_selected = len(nfc_selected) == 7
     manual_teams_complete = all_afc_selected and all_nfc_selected
 
-    # ALL BUTTONS DISABLED UNLESS BRACKET IS FILLED
-    buttons_disabled = not st.session_state.bracket_filled
+    # ALL BUTTONS DISABLED UNLESS BRACKET IS FILLED - now handled per button
+    # Interactive mode: buttons become clickable to show game details
+    
+    # Get shared state for rendering interactive buttons
+    result = st.session_state.bracket_result
+    models = st.session_state.bracket_models
+    team_stats = st.session_state.bracket_team_stats
+    elo_dict = st.session_state.bracket_elo_dict
     
     # Helper to get bracket slot label dynamically
     def get_bracket_label(slot_key: str, default_label: str) -> str:
@@ -357,16 +765,16 @@ if st.session_state.flow == "predicting":
     # ---- AFC Wild / Bye ----
     with cols[0]:
         st.markdown("**AFC Wild**")
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_bye")
             current = st.session_state.get("afc_bye", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
             st.selectbox("AFC Bye", available, index=idx, key="afc_bye", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("afc_bye", "AFC Bye"), key="afc_bye_btn", disabled=buttons_disabled)
+            render_bracket_button("afc_bye", "AFC Bye", result, models, team_stats, elo_dict, "_bye")
         st.markdown("Bye Week")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild1")
             current = st.session_state.get("afc_wild1", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -377,10 +785,10 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="afc_wild2", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("afc_wild1", "AFC Wild 1"), key="afc_wild1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("afc_wild2", "AFC Wild 2"), key="afc_wild2_btn", disabled=buttons_disabled)
+            render_bracket_button("afc_wild1", "AFC Wild 1", result, models, team_stats, elo_dict, "_w1")
+            render_bracket_button("afc_wild2", "AFC Wild 2", result, models, team_stats, elo_dict, "_w2")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild3")
             current = st.session_state.get("afc_wild3", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -391,10 +799,10 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="afc_wild4", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("afc_wild3", "AFC Wild 3"), key="afc_div1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("afc_wild4", "AFC Wild 4"), key="afc_div2_btn", disabled=buttons_disabled)
+            render_bracket_button("afc_wild3", "AFC Wild 3", result, models, team_stats, elo_dict, "_w3")
+            render_bracket_button("afc_wild4", "AFC Wild 4", result, models, team_stats, elo_dict, "_w4")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(afc_teams_full, afc_selected, "afc_wild5")
             current = st.session_state.get("afc_wild5", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -405,63 +813,63 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="afc_wild6", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("afc_wild5", "AFC Wild 5"), key="afc_conf1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("afc_wild6", "AFC Wild 6"), key="afc_conf2_btn", disabled=buttons_disabled)
+            render_bracket_button("afc_wild5", "AFC Wild 5", result, models, team_stats, elo_dict, "_w5")
+            render_bracket_button("afc_wild6", "AFC Wild 6", result, models, team_stats, elo_dict, "_w6")
 
     # ---- AFC Divisional ----
     with cols[1]:
         st.markdown("**AFC Divisional**")
         vspace(3)
-        st.button(get_bracket_label("afc_div_win_1", "AFC Div Win 1"), key="afc_div_win_1", disabled=buttons_disabled)
-        st.button(get_bracket_label("afc_div_win_2", "AFC Div Win 2"), key="afc_div_win_2", disabled=buttons_disabled)
+        render_bracket_button("afc_div_win_1", "AFC Div Win 1", result, models, team_stats, elo_dict, "_top1")
+        render_bracket_button("afc_div_win_2", "AFC Div Win 2", result, models, team_stats, elo_dict, "_top2")
         vspace(9)
-        st.button(get_bracket_label("afc_div_win_3", "AFC Div Win 3"), key="afc_div_win_3", disabled=buttons_disabled)
-        st.button(get_bracket_label("afc_div_win_4", "AFC Div Win 4"), key="afc_div_win_4", disabled=buttons_disabled)
+        render_bracket_button("afc_div_win_3", "AFC Div Win 3", result, models, team_stats, elo_dict, "_bot1")
+        render_bracket_button("afc_div_win_4", "AFC Div Win 4", result, models, team_stats, elo_dict, "_bot2")
 
     # ---- AFC Conference ----
     with cols[2]:
         st.markdown("**AFC Conference**")
         vspace(11)
-        st.button(get_bracket_label("afc_conf_win_1", "AFC Conf Win 1"), key="afc_conf_win_1", disabled=buttons_disabled)
-        st.button(get_bracket_label("afc_conf_win_2", "AFC Conf Win 2"), key="afc_conf_win_2", disabled=buttons_disabled)
+        render_bracket_button("afc_conf_win_1", "AFC Conf Win 1", result, models, team_stats, elo_dict, "_1")
+        render_bracket_button("afc_conf_win_2", "AFC Conf Win 2", result, models, team_stats, elo_dict, "_2")
 
     # ---- SUPER BOWL (centered vertically) ----
     with cols[3]:
         st.markdown("**Super Bowl**")
         vspace(11)
-        st.button(get_bracket_label("sb_team_a", "SB Team A"), key="sb_team_a", disabled=buttons_disabled)
-        st.button(get_bracket_label("sb_team_b", "SB Team B"), key="sb_team_b", disabled=buttons_disabled)
+        render_bracket_button("sb_team_a", "SB Team A", result, models, team_stats, elo_dict, "_a")
+        render_bracket_button("sb_team_b", "SB Team B", result, models, team_stats, elo_dict, "_b")
 
     # ---- NFC Conference ----
     with cols[4]:
         st.markdown("**NFC Conference**")
         vspace(11)
-        st.button(get_bracket_label("nfc_conf_win_1", "NFC Conf Win 1"), key="nfc_conf_win_1", disabled=buttons_disabled)
-        st.button(get_bracket_label("nfc_conf_win_2", "NFC Conf Win 2"), key="nfc_conf_win_2", disabled=buttons_disabled)
+        render_bracket_button("nfc_conf_win_1", "NFC Conf Win 1", result, models, team_stats, elo_dict, "_1")
+        render_bracket_button("nfc_conf_win_2", "NFC Conf Win 2", result, models, team_stats, elo_dict, "_2")
 
     # ---- NFC Divisional ----
     with cols[5]:
         st.markdown("**NFC Divisional**")
         vspace(3)
-        st.button(get_bracket_label("nfc_div_win_1", "NFC Div Win 1"), key="nfc_div_win_1", disabled=buttons_disabled)
-        st.button(get_bracket_label("nfc_div_win_2", "NFC Div Win 2"), key="nfc_div_win_2", disabled=buttons_disabled)
+        render_bracket_button("nfc_div_win_1", "NFC Div Win 1", result, models, team_stats, elo_dict, "_top1")
+        render_bracket_button("nfc_div_win_2", "NFC Div Win 2", result, models, team_stats, elo_dict, "_top2")
         vspace(9)
-        st.button(get_bracket_label("nfc_div_win_3", "NFC Div Win 3"), key="nfc_div_win_3", disabled=buttons_disabled)
-        st.button(get_bracket_label("nfc_div_win_4", "NFC Div Win 4"), key="nfc_div_win_4", disabled=buttons_disabled)
+        render_bracket_button("nfc_div_win_3", "NFC Div Win 3", result, models, team_stats, elo_dict, "_bot1")
+        render_bracket_button("nfc_div_win_4", "NFC Div Win 4", result, models, team_stats, elo_dict, "_bot2")
 
     # ---- NFC Wild / Bye ----
     with cols[6]:
         st.markdown("**NFC Wild**")
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_bye")
             current = st.session_state.get("nfc_bye", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
             st.selectbox("NFC Bye", available, index=idx, key="nfc_bye", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("nfc_bye", "NFC Bye"), key="nfc_bye_btn", disabled=buttons_disabled)
+            render_bracket_button("nfc_bye", "NFC Bye", result, models, team_stats, elo_dict, "_bye")
         st.markdown("Bye Week")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild1")
             current = st.session_state.get("nfc_wild1", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -472,10 +880,10 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 2", available, index=idx, key="nfc_wild2", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("nfc_wild1", "NFC Wild 1"), key="nfc_wild1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("nfc_wild2", "NFC Wild 2"), key="nfc_wild2_btn", disabled=buttons_disabled)
+            render_bracket_button("nfc_wild1", "NFC Wild 1", result, models, team_stats, elo_dict, "_w1")
+            render_bracket_button("nfc_wild2", "NFC Wild 2", result, models, team_stats, elo_dict, "_w2")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild3")
             current = st.session_state.get("nfc_wild3", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -486,10 +894,10 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 4", available, index=idx, key="nfc_wild4", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("nfc_wild3", "NFC Wild 3"), key="nfc_div1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("nfc_wild4", "NFC Wild 4"), key="nfc_div2_btn", disabled=buttons_disabled)
+            render_bracket_button("nfc_wild3", "NFC Wild 3", result, models, team_stats, elo_dict, "_w3")
+            render_bracket_button("nfc_wild4", "NFC Wild 4", result, models, team_stats, elo_dict, "_w4")
         vspace(1)
-        if manual_mode:
+        if manual_show_dropdowns:
             available = get_available_teams(nfc_teams_full, nfc_selected, "nfc_wild5")
             current = st.session_state.get("nfc_wild5", "-- Choose a team --")
             idx = available.index(current) if current in available else 0
@@ -500,8 +908,8 @@ if st.session_state.flow == "predicting":
             idx = available.index(current) if current in available else 0
             st.selectbox("Wild Card 6", available, index=idx, key="nfc_wild6", label_visibility="collapsed")
         else:
-            st.button(get_bracket_label("nfc_wild5", "NFC Wild 5"), key="nfc_conf1_btn", disabled=buttons_disabled)
-            st.button(get_bracket_label("nfc_wild6", "NFC Wild 6"), key="nfc_conf2_btn", disabled=buttons_disabled)
+            render_bracket_button("nfc_wild5", "NFC Wild 5", result, models, team_stats, elo_dict, "_w5")
+            render_bracket_button("nfc_wild6", "NFC Wild 6", result, models, team_stats, elo_dict, "_w6")
 
     # ---- CONTROLS SECTION (wider, centered below) ----
     control_cols = st.columns([2.8, 5, 3.3])
@@ -529,6 +937,7 @@ if st.session_state.flow == "predicting":
                 # Reset bracket results when switching modes
                 st.session_state.bracket_result = None
                 st.session_state.bracket_filled = False
+                st.session_state.manual_bracket_predicted = False
                 st.rerun()
             
             st.markdown("---")
@@ -544,6 +953,7 @@ if st.session_state.flow == "predicting":
                         st.session_state.clicked = True
                         st.session_state.bracket_result = None
                         st.session_state.bracket_filled = False
+                        st.session_state.manual_bracket_predicted = False
                         st.rerun()
             
             st.markdown("---")
@@ -603,9 +1013,29 @@ if st.session_state.flow == "predicting":
                                         # Add delay to show the spinner animation longer
                                         time.sleep(2)
                                         
-                                        # Store results
+                                        # Store results (including models and stats for interactive buttons)
                                         st.session_state.bracket_result = result
                                         st.session_state.bracket_filled = True
+                                        st.session_state.bracket_models = {
+                                            'model1': models["model1"],
+                                            'model2': models["model2"]
+                                        }
+                                        st.session_state.bracket_team_stats = models["precomputed_team_stats"]
+                                        st.session_state.bracket_elo_dict = models["precomputed_elo_ratings"]
+                                        
+                                        # Compute and store playoff probabilities for display in modals
+                                        # Request ALL teams (teams_per_conference=32) so users can see probabilities for any team they select
+                                        playoff_probs_dict = {}
+                                        try:
+                                            from bracket_predictor import predict_playoff_teams
+                                            playoff_teams = predict_playoff_teams(models["model1"], models["precomputed_team_stats"], teams_per_conference=32)
+                                            for conf in ['AFC', 'NFC']:
+                                                for team, prob in playoff_teams.get(conf, []):
+                                                    playoff_probs_dict[team] = prob
+                                        except Exception as e:
+                                            pass
+                                        st.session_state.playoff_probs_dict = playoff_probs_dict
+                                        
                                         st.session_state.automl_predicting = False
                                         st.rerun()
                                     else:
@@ -636,16 +1066,31 @@ if st.session_state.flow == "predicting":
                 "from the Wild Card through the Super Bowl and determine the champion.")
                 vspace(1)
                 
-                # Button disabled until all 14 teams selected OR if currently predicting
-                predict_manual_disabled = (not manual_teams_complete) or st.session_state.manual_predicting
-                manual_btn_label = "Predicting..." if st.session_state.manual_predicting else "Predict Bracket"
-                
-                if st.button(manual_btn_label, use_container_width=True, key="predict_manual", disabled=predict_manual_disabled):
-                    if not st.session_state.selected_model:
-                        st.warning("Choose a saved model version first.")
-                    else:
-                        st.session_state.manual_predicting = True
+                # Check if manual bracket has been predicted
+                if st.session_state.manual_bracket_predicted:
+                    # Show Reset Bracket button
+                    if st.button("Reset Bracket", use_container_width=True, key="reset_manual"):
+                        # Reset all manual bracket state
+                        st.session_state.manual_bracket_predicted = False
+                        st.session_state.bracket_result = None
+                        st.session_state.bracket_filled = False
+                        st.session_state.bracket_models = None
+                        st.session_state.bracket_team_stats = None
+                        st.session_state.bracket_elo_dict = None
+                        st.session_state.playoff_probs_dict = {}
                         st.rerun()
+                else:
+                    # Show Predict Bracket button
+                    # Button disabled until all 14 teams selected OR if currently predicting
+                    predict_manual_disabled = (not manual_teams_complete) or st.session_state.manual_predicting
+                    manual_btn_label = "Predicting..." if st.session_state.manual_predicting else "Predict Bracket"
+                    
+                    if st.button(manual_btn_label, use_container_width=True, key="predict_manual", disabled=predict_manual_disabled):
+                        if not st.session_state.selected_model:
+                            st.warning("Choose a saved model version first.")
+                        else:
+                            st.session_state.manual_predicting = True
+                            st.rerun()
                 
                 # Logic runs if state is True (after rerun)
                 if st.session_state.manual_predicting:
@@ -671,6 +1116,22 @@ if st.session_state.flow == "predicting":
                                         metadata = models.get("metadata", {})
                                         current_season = metadata.get("latest_season", 2024)
                                         
+                                        # Compute playoff probabilities for ALL teams (for display purposes)
+                                        # even though user manually selected playoff teams
+                                        # Request ALL teams (teams_per_conference=32) so any manually selected team shows its probability
+                                        playoff_probs_dict = {}
+                                        if models.get("model1") and models.get("precomputed_team_stats") is not None:
+                                            from bracket_predictor import predict_playoff_teams
+                                            try:
+                                                playoff_teams = predict_playoff_teams(models["model1"], models["precomputed_team_stats"], teams_per_conference=32)
+                                                # Convert to dict for easy lookup
+                                                for conf in ['AFC', 'NFC']:
+                                                    for team, prob in playoff_teams.get(conf, []):
+                                                        playoff_probs_dict[team] = prob
+                                            except Exception as e:
+                                                # If prediction fails, that's okay - we'll just not show playoff probs
+                                                pass
+                                        
                                         # Run inference-only bracket prediction
                                         result = run_manual_bracket_inference(
                                             models["model2"],
@@ -684,9 +1145,19 @@ if st.session_state.flow == "predicting":
                                         # Add delay to show the spinner animation longer
                                         time.sleep(2)
                                         
-                                        # Store results
+                                        # Store results (including models and stats for interactive buttons)
                                         st.session_state.bracket_result = result
                                         st.session_state.bracket_filled = True
+                                        st.session_state.bracket_models = {
+                                            'model1': models.get("model1"),
+                                            'model2': models["model2"]
+                                        }
+                                        st.session_state.bracket_team_stats = models["precomputed_team_stats"]
+                                        st.session_state.bracket_elo_dict = models["precomputed_elo_ratings"]
+                                        # Store playoff probabilities for manual mode display
+                                        st.session_state.playoff_probs_dict = playoff_probs_dict
+                                        # Set flag to show buttons instead of dropdowns
+                                        st.session_state.manual_bracket_predicted = True
                                         st.session_state.manual_predicting = False
                                         st.rerun()
                                     else:

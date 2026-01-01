@@ -13,7 +13,7 @@
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [Quick Start](#quick-start)
+2. [Setup](#setup)
 3. [Repository Layout](#repository-layout)
 4. [Data Pipeline & Scraping](#data-pipeline--scraping)
 5. [Feature Engineering](#feature-engineering)
@@ -23,10 +23,8 @@
 9. [Running the Streamlit App](#running-the-streamlit-app)
 10. [How Predictions Work](#how-predictions-work)
 11. [Interpreting Results](#interpreting-results)
-12. [Security, Privacy & Attribution](#security-privacy--attribution)
-13. [Limitations & Bias](#limitations--bias)
-14. [Contribution & Development](#contribution--development)
-15. [Appendix](#appendix)
+12. [Limitations & Bias](#limitations--bias)
+13. [Appendix](#appendix)
 
 ---
 
@@ -91,7 +89,7 @@ NFL Predictor is an end-to-end machine learning system that:
 
 ---
 
-## Quick Start
+## Setup
 
 ### Prerequisites
 
@@ -1017,35 +1015,6 @@ Sources of uncertainty:
 
 ---
 
-## Security, Privacy & Attribution
-
-### Data Attribution
-
-This project uses data from **nflverse** (https://github.com/nflverse):
-
-- **License**: Check nflverse repository for current license terms
-- **Data source**: NFL play-by-play and team statistics
-- **Library**: `nflreadpy` (https://pypi.org/project/nflreadpy/)
-
-**Disclaimer**: This project is for educational and research purposes. Not affiliated with the NFL.
-
-### Privacy
-
-- No user data is collected or stored
-- All predictions run locally
-- No external API calls (except during data scraping)
-
-### Terms of Service
-
-By using this project, you agree to:
-
-- Comply with nflverse data usage terms
-- Use predictions for personal/educational purposes only
-- Not use predictions for commercial sports betting or gambling
-- Properly attribute nflverse data in any publications
-
----
-
 ## Limitations & Bias
 
 ### Model Limitations
@@ -1089,101 +1058,6 @@ By using this project, you agree to:
 6. **Advanced metrics**:
    - EPA (Expected Points Added), DVOA (Defense-adjusted Value Over Average)
    - Play-level features (e.g., 3rd down conversion rate, red zone efficiency)
-
----
-
-## Contribution & Development
-
-### How to Contribute
-
-We welcome contributions! Here's how to get started:
-
-1. **Fork the repository**
-2. **Create a feature branch**:
-   ```bash
-   git checkout -b feature/add-gradient-boosting
-   ```
-3. **Make changes** (follow code style below)
-4. **Test your changes**: Run the app and verify predictions work correctly
-5. **Commit and push**:
-   ```bash
-   git add .
-   git commit -m "Add gradient boosting models"
-   git push origin feature/add-gradient-boosting
-   ```
-6. **Open a Pull Request**
-
-### Code Style
-
-- **Formatter**: Use `black` (line length 100)
-  ```bash
-  pip install black
-  black app.py training_model.py bracket_predictor.py
-  ```
-- **Import sorting**: Use `isort`
-  ```bash
-  pip install isort
-  isort app.py training_model.py bracket_predictor.py
-  ```
-- **Type hints**: Prefer type annotations for functions
-  ```python
-  def simulate_game(model2, team_stats: pd.DataFrame, elo_dict: Dict[str, float], team_a: str, team_b: str) -> Tuple[str, float]:
-      ...
-  ```
-- **Docstrings**: Use Google-style docstrings
-
-  ```python
-  def predict_playoff_teams(model1, team_stats: pd.DataFrame, teams_per_conference: int = 7) -> Dict[str, List[Tuple[str, float]]]:
-      """
-      Use Model 1 to predict which teams make the playoffs.
-
-      Args:
-          model1: Trained playoff qualifier model
-          team_stats: DataFrame with team stats for current season
-          teams_per_conference: Number of playoff teams per conference (default 7)
-
-      Returns:
-          Dict with 'AFC' and 'NFC' keys, each containing list of (team_name, probability) tuples
-      """
-  ```
-
-### Adding New Models
-
-To add a new model type (e.g., XGBoost):
-
-1. **Create new training function** in `training_model.py`:
-
-   ```python
-   from xgboost import XGBClassifier
-
-   def train_xgboost_model(X_train, y_train):
-       model = XGBClassifier(n_estimators=200, max_depth=6, random_state=42)
-       model.fit(X_train, y_train)
-       return model
-   ```
-
-2. **Update `export_model_bundle()`** to save XGBoost model
-3. **Update `app.py`** to load and use XGBoost model
-4. **Test predictions** by running the app with both Random Forest and XGBoost models
-
-### Running Tests
-
-We use `pytest` for unit tests:
-
-```bash
-pip install pytest
-pytest tests/ -v
-```
-
-**Test coverage**:
-
-- `tests/test_bracket_predictor.py`: Tests for bracket simulation logic
-- `tests/test_feature_engineering.py`: Tests for feature computation
-- `tests/test_model_io.py`: Tests for model loading/saving
-
-### CI/CD
-
-(Future work: GitHub Actions for automated testing and deployment)
 
 ---
 

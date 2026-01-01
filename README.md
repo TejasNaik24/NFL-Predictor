@@ -2,6 +2,9 @@
 
 **A production-grade machine learning system for predicting NFL playoff brackets using ensemble Random Forest models with interactive Streamlit visualization.**
 
+## Check out the website [here](https://nfl-predictor28.streamlit.app/)!
+
+
 ---
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)

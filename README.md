@@ -1,9 +1,8 @@
 # NFL Predictor
 
-**A production-grade machine learning system for predicting NFL playoff brackets using ensemble Random Forest models with interactive Streamlit visualization.**
+A production-grade machine learning system for predicting NFL playoff brackets using ensemble Random Forest models with interactive Streamlit visualization. The system automatically scrapes NFL game data, engineers 15+ advanced features including Elo ratings and turnover margins, and deploys two specialized models: a playoff qualifier that identifies the top 7 teams per conference, and a bracket predictor that simulates head-to-head matchups through Wild Card, Divisional, Conference Championships, and the Super Bowl. Features include clickable bracket visualization with real-time win probabilities, feature importance analysis, and support for both AutoML predictions and manual team selection modes.
 
 ## Check out the website [here](https://nfl-predictor28.streamlit.app/)!
-
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-FF4B4B.svg)](https://streamlit.io/)

@@ -22,13 +22,11 @@
 8. [Training a New Model](#training-a-new-model)
 9. [Running the Streamlit App](#running-the-streamlit-app)
 10. [How Predictions Work](#how-predictions-work)
-11. [Testing & Validation](#testing--validation)
-12. [Interpreting Results](#interpreting-results)
-13. [Troubleshooting](#troubleshooting)
-14. [Security, Privacy & Attribution](#security-privacy--attribution)
-15. [Limitations & Bias](#limitations--bias)
-16. [Contribution & Development](#contribution--development)
-17. [Appendix](#appendix)
+11. [Interpreting Results](#interpreting-results)
+12. [Security, Privacy & Attribution](#security-privacy--attribution)
+13. [Limitations & Bias](#limitations--bias)
+14. [Contribution & Development](#contribution--development)
+15. [Appendix](#appendix)
 
 ---
 
@@ -234,52 +232,6 @@ python Scraping_Data.py
 - `md5_of_file(filepath)`: Computes MD5 hash for model versioning
 
 Used by `app.py` to load models and handle feature fallback logic.
-
-#### `run_checks.py`
-
-**Validation tests.** Checks:
-
-- No duplicate teams in bracket results
-- Exactly 7 seeds per conference
-- Model bundle integrity (pkl files exist, metadata valid)
-- Precomputed features match training season
-- Feature name alignment between models and exported metadata
-
-Run with:
-
-```bash
-python run_checks.py
-```
-
-#### `sensitivity_test_lions.py`
-
-**Sensitivity analysis script.** Tests how predictions change when modifying a specific team's stats (e.g., Detroit Lions):
-
-- Trains baseline model
-- Perturbs Lions' stats (e.g., increase points by 20%, decrease turnovers by 50%)
-- Re-predicts bracket
-- Compares champion outcomes
-
-Run with:
-
-```bash
-python sensitivity_test_lions.py
-```
-
-#### `monte_carlo_sim.py`
-
-**Monte Carlo simulations.** Runs N iterations of bracket prediction with:
-
-- Random seeds (or fixed seed for reproducibility)
-- Stochastic sampling from Model2 probabilities (optional)
-- Aggregates champion frequency distribution
-- Outputs confidence intervals
-
-Run with:
-
-```bash
-python monte_carlo_sim.py --iterations 1000 --seed 42
-```
 
 ### Folders
 
@@ -970,92 +922,34 @@ def determine_button_enabled(slot_key, result):
 
 ## Testing & Validation
 
-### `run_checks.py`
+To validate your model predictions:
 
-Validates model bundles and predictions. Checks:
+1. **Run predictions in the app**: Use both AutoML and Manual modes to ensure consistency
+2. **Compare multiple model bundles**: Train models on different year ranges (e.g., 2005-2014, 2010-2019, 2015-2024) and compare champion predictions
+3. **Inspect feature importance**: Check which features contribute most to predictions via the interactive modals
+4. **Verify bracket integrity**: Ensure no duplicate teams appear in bracket slots and exactly 7 seeds per conference
+5. **Check metadata**: Verify `metadata.json` contains correct season range and feature names
 
-1. **No duplicate teams**: Ensures each team appears at most once in bracket slots
-2. **Exactly 7 seeds per conference**: Validates playoff seeding
-3. **Model files exist**: Checks for `.pkl` files in bundle
-4. **Metadata valid**: JSON parses correctly, contains required fields
-5. **Precomputed features present**: If `has_inference_data: true`, checks for `precomputed_team_stats.pkl`
-6. **Feature name alignment**: Model 1 and Model 2 feature names match metadata
+**Manual Validation Checklist:**
 
-**Run:**
+```python
+# After running a prediction, verify:
+import joblib
+import json
 
-```bash
-python run_checks.py --bundle models/model_2015-2024
-```
+# 1. Check model files exist
+model1 = joblib.load('models/model_2015-2024/model1_playoff_qualifier.pkl')
+model2 = joblib.load('models/model_2015-2024/model2_bracket.pkl')
 
-**Output:**
+# 2. Check metadata
+with open('models/model_2015-2024/metadata.json') as f:
+    metadata = json.load(f)
+    print(f"Training range: {metadata['start_year']}-{metadata['end_year']}")
+    print(f"Features: {len(metadata['feature_names'])}")
 
-```
-✓ No duplicate teams in bracket
-✓ Exactly 7 AFC seeds
-✓ Exactly 7 NFC seeds
-✓ Model 1 loaded successfully
-✓ Model 2 loaded successfully
-✓ Precomputed features found
-✓ Feature names match metadata
-
-All checks passed!
-```
-
-### `sensitivity_test_lions.py`
-
-Tests model sensitivity to feature perturbations. Process:
-
-1. Train baseline model on original data
-2. Identify a team (e.g., Detroit Lions)
-3. Modify Lions' stats:
-   - Increase `points_mean` by 20%
-   - Decrease `turnovers_sum` by 50%
-   - Increase `elo` by 100
-4. Re-predict bracket with modified stats
-5. Compare champions (baseline vs. perturbed)
-
-**Run:**
-
-```bash
-python sensitivity_test_lions.py
-```
-
-**Expected Output:**
-
-```
-Baseline champion: Kansas City Chiefs
-Perturbed champion (Lions +20% points): Detroit Lions
-
-Sensitivity analysis shows model is sensitive to Lions' offensive performance.
-```
-
-### `monte_carlo_sim.py`
-
-Runs Monte Carlo simulations to estimate prediction uncertainty. Process:
-
-1. Load trained models
-2. Run N iterations of bracket prediction
-3. (Optional) Sample from Model2 probabilities stochastically instead of using argmax
-4. Aggregate champion counts
-5. Compute confidence intervals
-
-**Run:**
-
-```bash
-python monte_carlo_sim.py --iterations 1000 --seed 42 --stochastic
-```
-
-**Output:**
-
-```
-Running 1000 simulations...
-Champion distribution:
-  Kansas City Chiefs: 687 (68.7%)
-  San Francisco 49ers: 213 (21.3%)
-  Buffalo Bills: 78 (7.8%)
-  Detroit Lions: 22 (2.2%)
-
-95% confidence interval for KC Chiefs: [65.8%, 71.6%]
+# 3. Verify precomputed features
+team_stats = joblib.load('models/model_2015-2024/precomputed_team_stats.pkl')
+print(f"Teams in dataset: {len(team_stats)}")
 ```
 
 ---
@@ -1120,113 +1014,6 @@ Sources of uncertainty:
 - Run Monte Carlo simulations with `--stochastic` to sample from probabilities
 - Compare predictions from multiple model bundles (2005-2014, 2010-2019, 2015-2024)
 - Check sensitivity analysis results
-
----
-
-## Troubleshooting
-
-### Error: `No CSV files found in 'data_files'`
-
-**Cause**: App cannot find CSV files in `data_files/` folder.
-
-**Solutions**:
-
-1. **Run scraper**:
-   ```bash
-   python Scraping_Data.py
-   ```
-2. **Export model bundle with precomputed features** (recommended):
-   ```python
-   export_model_bundle(model1, model2, team_stats, elo_dict, 2015, 2024, 'models/model_2015-2024')
-   ```
-3. **Check folder structure**:
-   ```bash
-   ls data_files/
-   # Should see: nflverse_stats_2005.csv, nflverse_stats_2006.csv, ...
-   ```
-
-### Error: `Precomputed features not found`
-
-**Cause**: Model bundle was exported without `precomputed_team_stats.pkl` or `precomputed_elo_ratings.pkl`.
-
-**Solution**: Re-export bundle with precomputed features:
-
-```python
-from bracket_predictor import compute_team_stats_for_season, compute_elo_ratings
-import pandas as pd
-import joblib
-
-# Load trained models
-model1 = joblib.load('models/model_2015-2024/model1_playoff_qualifier.pkl')
-model2 = joblib.load('models/model_2015-2024/model2_bracket.pkl')
-
-# Load latest season data
-df = pd.read_csv('data_files/nflverse_stats_2024.csv')
-
-# Compute features
-team_stats = compute_team_stats_for_season(df, 2024)
-elo_dict = compute_elo_ratings(df, 2024)
-
-# Re-export bundle
-export_model_bundle(model1, model2, team_stats, elo_dict, 2015, 2024, 'models/model_2015-2024')
-```
-
-### Error: `Feature mismatch: model expects 42 features, got 38`
-
-**Cause**: Precomputed features do not match model's expected features (column order or missing columns).
-
-**Diagnosis**:
-
-1. Check `metadata.json`:
-   ```bash
-   cat models/model_2015-2024/metadata.json | grep feature_names
-   ```
-2. Compare with `model.feature_names_in_`:
-   ```python
-   import joblib
-   model1 = joblib.load('models/model_2015-2024/model1_playoff_qualifier.pkl')
-   print(model1.feature_names_in_)
-   ```
-
-**Solution**: Re-export bundle ensuring feature engineering matches training:
-
-- Use same `compute_team_stats_for_season()` function
-- Ensure all derived features are computed (e.g., `turnover_margin`, `recent_avg_points`)
-- Check for missing columns in latest CSV (e.g., `third_down_pct`)
-
-### Error: `Duplicate teams in bracket`
-
-**Cause**: Same team appears in multiple bracket slots (e.g., Kansas City Chiefs in both AFC Wild 1 and AFC Wild 2).
-
-**Diagnosis**:
-
-```bash
-python run_checks.py --bundle models/model_2015-2024
-# Will fail with: AssertionError: Duplicate teams found: ['Kansas City Chiefs']
-```
-
-**Root Cause**: Bug in `seed_conference()` or `simulate_game()` logic.
-
-**Solution**: Check `bracket_predictor.py`:
-
-- Ensure each wild card winner is correctly mapped to divisional matchups
-- Verify no team is overwriting another in `result['bracket_slots']`
-
-### App crashes with `KeyError: 'team_full'`
-
-**Cause**: CSV is missing `team_full` column (full team name).
-
-**Solution**: Add mapping in `bracket_predictor.py`:
-
-```python
-TEAM_ABBREV_TO_FULL = {
-    'KC': 'Kansas City Chiefs',
-    'SF': 'San Francisco 49ers',
-    # ... all 32 teams
-}
-
-df['team_full'] = df['team'].map(TEAM_ABBREV_TO_FULL)
-```
 
 ---
 
@@ -1317,11 +1104,7 @@ We welcome contributions! Here's how to get started:
    git checkout -b feature/add-gradient-boosting
    ```
 3. **Make changes** (follow code style below)
-4. **Run tests**:
-   ```bash
-   python run_checks.py --bundle models/model_2015-2024
-   pytest tests/
-   ```
+4. **Test your changes**: Run the app and verify predictions work correctly
 5. **Commit and push**:
    ```bash
    git add .
@@ -1348,6 +1131,7 @@ We welcome contributions! Here's how to get started:
       ...
   ```
 - **Docstrings**: Use Google-style docstrings
+
   ```python
   def predict_playoff_teams(model1, team_stats: pd.DataFrame, teams_per_conference: int = 7) -> Dict[str, List[Tuple[str, float]]]:
       """
@@ -1380,7 +1164,7 @@ To add a new model type (e.g., XGBoost):
 
 2. **Update `export_model_bundle()`** to save XGBoost model
 3. **Update `app.py`** to load and use XGBoost model
-4. **Add tests** in `run_checks.py`
+4. **Test predictions** by running the app with both Random Forest and XGBoost models
 
 ### Running Tests
 
@@ -1563,32 +1347,3 @@ Season Stats:
   | Passing Yards (sum) | 4523               | 4066          |
   | Rushing Yards (sum) | 2134               | 1987          |
 ```
-
----
-
-## Contact & Next Steps
-
-**Questions or Issues?**
-
-- Open an issue on GitHub: [https://github.com/yourusername/NFL-Predictor/issues](https://github.com/yourusername/NFL-Predictor/issues)
-- Email: your.email@example.com
-
-**Suggested Next Steps:**
-
-1. Train a model on your own data range (e.g., 2010-2024)
-2. Run sensitivity analysis to see which features matter most
-3. Add new features (e.g., betting lines, weather data)
-4. Implement gradient boosting models for comparison
-5. Build a REST API for programmatic access
-6. Deploy to Streamlit Cloud for public sharing
-
-**Related Resources:**
-
-- [Streamlit Documentation](https://docs.streamlit.io/)
-- [scikit-learn Random Forest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html)
-- [nflverse GitHub](https://github.com/nflverse)
-- [nflreadpy PyPI](https://pypi.org/project/nflreadpy/)
-
----
-
-**Happy Predicting! 🏈**

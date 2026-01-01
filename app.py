@@ -1057,7 +1057,7 @@ if st.session_state.flow == "predicting":
                 if st.session_state.bracket_filled and st.session_state.bracket_result:
                     champion = st.session_state.bracket_result.get("champion")
                     if champion:
-                        st.success(f"🏆 Predicted Champion: {champion}")
+                        st.success(f" Predicted Super Bowl Winner: {champion}")
             else:
                 st.markdown("#### Manual Selection")
                 st.write(

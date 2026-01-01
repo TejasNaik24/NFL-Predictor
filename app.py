@@ -575,7 +575,10 @@ if not st.session_state.clicked:
 if st.session_state.clicked and st.session_state.flow is None:
 
     today = datetime.now()
-    latest_year = today.year - 1
+    # Use same logic as scraper: if Jan/Feb, use previous year as current season
+    current_month = today.month
+    latest_year = (today.year - 1) if current_month in [1, 2] else today.year
+    latest_year = latest_year - 1  # Training data ends at previous completed season
     start_year = latest_year - 9
 
     outer_l, outer_c, outer_r = st.columns([1.2, 2, 1.2])

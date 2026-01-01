@@ -534,53 +534,84 @@ def run_automl_bracket(
     if progress_callback:
         progress_callback("Simulating Divisional round...", "info")
     
-    # AFC Divisional: 1 seed vs lowest remaining, 2nd highest vs 3rd highest
-    afc_div_teams = [afc_seeds[1]] + afc_wc_winners
-    # Sort WC winners by original seed
-    wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
+    # AFC Divisional: Preserve WC matchup lineage
+    # afc_wc_winners[0] = Winner of 2v7 (WC1) → plays Seed 1
+    # afc_wc_winners[1] = Winner of 3v6 (WC2) → plays Winner of WC3
+    # afc_wc_winners[2] = Winner of 4v5 (WC3) → plays Winner of WC2
+    afc_wc1 = afc_wc_winners[0]  # 2v7 winner
+    afc_wc2 = afc_wc_winners[1]  # 3v6 winner
+    afc_wc3 = afc_wc_winners[2]  # 4v5 winner
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
-    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
-    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['afc_div_win_1'] = afc_wc1  # Top of bracket: 2v7 winner (plays #1)
+    result['bracket_slots']['afc_div_win_2'] = afc_seeds[1]  # Top of bracket: #1 seed
+    result['bracket_slots']['afc_div_win_3'] = afc_wc2  # Bottom: 3v6 winner
+    result['bracket_slots']['afc_div_win_4'] = afc_wc3  # Bottom: 4v5 winner
     
-    # 1 seed plays lowest remaining seed
-    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
-    # Other two WC winners play each other
-    afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
+    # Divisional games: preserve bracket structure
+    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc1, team_stats, elo_dict)  # #1 vs WC1(2v7)
+    afc_div2_winner, prob2 = simulate_game(model2, afc_wc2, afc_wc3, team_stats, elo_dict)  # WC2(3v6) vs WC3(4v5)
     
-    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
-    result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
+    # Sanity check: ensure no duplicates and all winners from correct WC matchups
+    div_teams = [afc_wc1, afc_wc2, afc_wc3, afc_seeds[1]]
+    assert len(div_teams) == len(set(div_teams)), "Duplicate teams in AFC divisional round"
+    assert afc_wc1 in afc_wc_winners and afc_wc2 in afc_wc_winners and afc_wc3 in afc_wc_winners, "Invalid WC winners"
     
-    # NFC Divisional
-    nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
+    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc1}", 'winner': afc_div1_winner, 'probability': prob1})
+    result['divisional_results'].append({'matchup': f"{afc_wc2} vs {afc_wc3}", 'winner': afc_div2_winner, 'probability': prob2})
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
-    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    # NFC Divisional: Preserve WC matchup lineage
+    nfc_wc1 = nfc_wc_winners[0]  # 2v7 winner
+    nfc_wc2 = nfc_wc_winners[1]  # 3v6 winner
+    nfc_wc3 = nfc_wc_winners[2]  # 4v5 winner
     
-    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
-    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc1  # Top of bracket: 2v7 winner (plays #1)
+    result['bracket_slots']['nfc_div_win_2'] = nfc_seeds[1]  # Top of bracket: #1 seed
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc2  # Bottom: 3v6 winner
+    result['bracket_slots']['nfc_div_win_4'] = nfc_wc3  # Bottom: 4v5 winner
     
-    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
-    result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
+    # Divisional games: preserve bracket structure
+    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc1, team_stats, elo_dict)  # #1 vs WC1(2v7)
+    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc2, nfc_wc3, team_stats, elo_dict)  # WC2(3v6) vs WC3(4v5)
+    
+    # Sanity check: ensure no duplicates and all winners from correct WC matchups
+    div_teams_nfc = [nfc_wc1, nfc_wc2, nfc_wc3, nfc_seeds[1]]
+    assert len(div_teams_nfc) == len(set(div_teams_nfc)), "Duplicate teams in NFC divisional round"
+    assert nfc_wc1 in nfc_wc_winners and nfc_wc2 in nfc_wc_winners and nfc_wc3 in nfc_wc_winners, "Invalid WC winners"
+    
+    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc1}", 'winner': nfc_div1_winner, 'probability': prob3})
+    result['divisional_results'].append({'matchup': f"{nfc_wc2} vs {nfc_wc3}", 'winner': nfc_div2_winner, 'probability': prob4})
     
     # Step 6: Simulate Conference Championships
     if progress_callback:
         progress_callback("Simulating Conference Championships...", "info")
     
-    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
-    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
+    # Fill conference championship slots with divisional winners (before simulating)
+
     
-    result['bracket_slots']['afc_conf_win_1'] = afc_champ
-    result['bracket_slots']['afc_conf_win_2'] = afc_div1_winner if afc_div1_winner != afc_champ else afc_div2_winner
-    result['bracket_slots']['nfc_conf_win_1'] = nfc_champ
-    result['bracket_slots']['nfc_conf_win_2'] = nfc_div1_winner if nfc_div1_winner != nfc_champ else nfc_div2_winner
+    result['bracket_slots']['afc_conf_win_1'] = afc_div1_winner
+
+    
+    result['bracket_slots']['afc_conf_win_2'] = afc_div2_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_1'] = nfc_div1_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_2'] = nfc_div2_winner
+
+    
+    
+
+    
+    # Simulate conference championships
+
+    
+    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
+
+    
+    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
     
     result['conference_results']['AFC'] = {'winner': afc_champ, 'probability': afc_prob}
     result['conference_results']['NFC'] = {'winner': nfc_champ, 'probability': nfc_prob}
@@ -700,51 +731,79 @@ def run_manual_bracket(
     if progress_callback:
         progress_callback("Simulating Divisional round...", "info")
     
-    # AFC Divisional: 1 seed vs lowest remaining, other two WC winners play
-    wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
+    # AFC Divisional: Preserve WC matchup lineage
+    afc_wc1 = afc_wc_winners[0]  # 2v7 winner
+    afc_wc2 = afc_wc_winners[1]  # 3v6 winner
+    afc_wc3 = afc_wc_winners[2]  # 4v5 winner
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
-    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
-    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['afc_div_win_1'] = afc_wc1
+    result['bracket_slots']['afc_div_win_2'] = afc_seeds[1]
+    result['bracket_slots']['afc_div_win_3'] = afc_wc2
+    result['bracket_slots']['afc_div_win_4'] = afc_wc3
     
-    # 1 seed plays lowest remaining seed
-    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
-    # Other two WC winners play each other
-    afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
+    # Divisional games: preserve bracket structure
+    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc1, team_stats, elo_dict)
+    afc_div2_winner, prob2 = simulate_game(model2, afc_wc2, afc_wc3, team_stats, elo_dict)
     
-    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
-    result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
+    # Sanity check
+    div_teams = [afc_wc1, afc_wc2, afc_wc3, afc_seeds[1]]
+    assert len(div_teams) == len(set(div_teams)), "Duplicate teams in AFC divisional round"
     
-    # NFC Divisional
-    nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
+    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc1}", 'winner': afc_div1_winner, 'probability': prob1})
+    result['divisional_results'].append({'matchup': f"{afc_wc2} vs {afc_wc3}", 'winner': afc_div2_winner, 'probability': prob2})
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
-    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    # NFC Divisional: Preserve WC matchup lineage
+    nfc_wc1 = nfc_wc_winners[0]  # 2v7 winner
+    nfc_wc2 = nfc_wc_winners[1]  # 3v6 winner
+    nfc_wc3 = nfc_wc_winners[2]  # 4v5 winner
     
-    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
-    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc1
+    result['bracket_slots']['nfc_div_win_2'] = nfc_seeds[1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc2
+    result['bracket_slots']['nfc_div_win_4'] = nfc_wc3
     
-    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
-    result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
+    # Divisional games: preserve bracket structure
+    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc1, team_stats, elo_dict)
+    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc2, nfc_wc3, team_stats, elo_dict)
+    
+    # Sanity check
+    div_teams_nfc = [nfc_wc1, nfc_wc2, nfc_wc3, nfc_seeds[1]]
+    assert len(div_teams_nfc) == len(set(div_teams_nfc)), "Duplicate teams in NFC divisional round"
+    
+    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc1}", 'winner': nfc_div1_winner, 'probability': prob3})
+    result['divisional_results'].append({'matchup': f"{nfc_wc2} vs {nfc_wc3}", 'winner': nfc_div2_winner, 'probability': prob4})
     
     # Simulate Conference Championships
     if progress_callback:
         progress_callback("Simulating Conference Championships...", "info")
     
-    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
-    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
+    # Fill conference championship slots with divisional winners (before simulating)
+
     
-    result['bracket_slots']['afc_conf_win_1'] = afc_champ
-    result['bracket_slots']['afc_conf_win_2'] = afc_div1_winner if afc_div1_winner != afc_champ else afc_div2_winner
-    result['bracket_slots']['nfc_conf_win_1'] = nfc_champ
-    result['bracket_slots']['nfc_conf_win_2'] = nfc_div1_winner if nfc_div1_winner != nfc_champ else nfc_div2_winner
+    result['bracket_slots']['afc_conf_win_1'] = afc_div1_winner
+
+    
+    result['bracket_slots']['afc_conf_win_2'] = afc_div2_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_1'] = nfc_div1_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_2'] = nfc_div2_winner
+
+    
+    
+
+    
+    # Simulate conference championships
+
+    
+    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
+
+    
+    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
     
     result['conference_results']['AFC'] = {'winner': afc_champ, 'probability': afc_prob}
     result['conference_results']['NFC'] = {'winner': nfc_champ, 'probability': nfc_prob}
@@ -880,51 +939,79 @@ def run_automl_bracket_inference(
     if progress_callback:
         progress_callback("Simulating Divisional round...", "info")
     
-    # AFC Divisional: 1 seed vs lowest remaining, 2nd highest vs 3rd highest
-    wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
+    # AFC Divisional: Preserve WC matchup lineage
+    afc_wc1 = afc_wc_winners[0]  # 2v7 winner
+    afc_wc2 = afc_wc_winners[1]  # 3v6 winner
+    afc_wc3 = afc_wc_winners[2]  # 4v5 winner
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
-    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
-    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['afc_div_win_1'] = afc_wc1
+    result['bracket_slots']['afc_div_win_2'] = afc_seeds[1]
+    result['bracket_slots']['afc_div_win_3'] = afc_wc2
+    result['bracket_slots']['afc_div_win_4'] = afc_wc3
     
-    # 1 seed plays lowest remaining seed
-    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
-    # Other two WC winners play each other
-    afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
+    # Divisional games: preserve bracket structure
+    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc1, team_stats, elo_dict)
+    afc_div2_winner, prob2 = simulate_game(model2, afc_wc2, afc_wc3, team_stats, elo_dict)
     
-    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
-    result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
+    # Sanity check
+    div_teams = [afc_wc1, afc_wc2, afc_wc3, afc_seeds[1]]
+    assert len(div_teams) == len(set(div_teams)), "Duplicate teams in AFC divisional round"
     
-    # NFC Divisional
-    nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
+    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc1}", 'winner': afc_div1_winner, 'probability': prob1})
+    result['divisional_results'].append({'matchup': f"{afc_wc2} vs {afc_wc3}", 'winner': afc_div2_winner, 'probability': prob2})
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
-    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    # NFC Divisional: Preserve WC matchup lineage
+    nfc_wc1 = nfc_wc_winners[0]  # 2v7 winner
+    nfc_wc2 = nfc_wc_winners[1]  # 3v6 winner
+    nfc_wc3 = nfc_wc_winners[2]  # 4v5 winner
     
-    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
-    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc1
+    result['bracket_slots']['nfc_div_win_2'] = nfc_seeds[1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc2
+    result['bracket_slots']['nfc_div_win_4'] = nfc_wc3
     
-    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
-    result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
+    # Divisional games: preserve bracket structure
+    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc1, team_stats, elo_dict)
+    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc2, nfc_wc3, team_stats, elo_dict)
+    
+    # Sanity check
+    div_teams_nfc = [nfc_wc1, nfc_wc2, nfc_wc3, nfc_seeds[1]]
+    assert len(div_teams_nfc) == len(set(div_teams_nfc)), "Duplicate teams in NFC divisional round"
+    
+    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc1}", 'winner': nfc_div1_winner, 'probability': prob3})
+    result['divisional_results'].append({'matchup': f"{nfc_wc2} vs {nfc_wc3}", 'winner': nfc_div2_winner, 'probability': prob4})
     
     # Step 6: Simulate Conference Championships
     if progress_callback:
         progress_callback("Simulating Conference Championships...", "info")
     
-    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
-    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
+    # Fill conference championship slots with divisional winners (before simulating)
+
     
-    result['bracket_slots']['afc_conf_win_1'] = afc_champ
-    result['bracket_slots']['afc_conf_win_2'] = afc_div1_winner if afc_div1_winner != afc_champ else afc_div2_winner
-    result['bracket_slots']['nfc_conf_win_1'] = nfc_champ
-    result['bracket_slots']['nfc_conf_win_2'] = nfc_div1_winner if nfc_div1_winner != nfc_champ else nfc_div2_winner
+    result['bracket_slots']['afc_conf_win_1'] = afc_div1_winner
+
+    
+    result['bracket_slots']['afc_conf_win_2'] = afc_div2_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_1'] = nfc_div1_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_2'] = nfc_div2_winner
+
+    
+    
+
+    
+    # Simulate conference championships
+
+    
+    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
+
+    
+    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
     
     result['conference_results']['AFC'] = {'winner': afc_champ, 'probability': afc_prob}
     result['conference_results']['NFC'] = {'winner': nfc_champ, 'probability': nfc_prob}
@@ -1048,51 +1135,79 @@ def run_manual_bracket_inference(
     if progress_callback:
         progress_callback("Simulating Divisional round...", "info")
     
-    # AFC Divisional: 1 seed vs lowest remaining, other two WC winners play
-    wc_seed_map = {afc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    afc_wc_sorted = sorted(afc_wc_winners, key=lambda t: wc_seed_map.get(t, 99))
+    # AFC Divisional: Preserve WC matchup lineage
+    afc_wc1 = afc_wc_winners[0]  # 2v7 winner
+    afc_wc2 = afc_wc_winners[1]  # 3v6 winner
+    afc_wc3 = afc_wc_winners[2]  # 4v5 winner
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['afc_div_win_1'] = afc_wc_sorted[0]
-    result['bracket_slots']['afc_div_win_2'] = afc_wc_sorted[1]
-    result['bracket_slots']['afc_div_win_3'] = afc_wc_sorted[2]
-    result['bracket_slots']['afc_div_win_4'] = afc_seeds[1]
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['afc_div_win_1'] = afc_wc1
+    result['bracket_slots']['afc_div_win_2'] = afc_seeds[1]
+    result['bracket_slots']['afc_div_win_3'] = afc_wc2
+    result['bracket_slots']['afc_div_win_4'] = afc_wc3
     
-    # 1 seed plays lowest remaining seed
-    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc_sorted[-1], team_stats, elo_dict)
-    # Other two WC winners play each other
-    afc_div2_winner, prob2 = simulate_game(model2, afc_wc_sorted[0], afc_wc_sorted[1], team_stats, elo_dict)
+    # Divisional games: preserve bracket structure
+    afc_div1_winner, prob1 = simulate_game(model2, afc_seeds[1], afc_wc1, team_stats, elo_dict)
+    afc_div2_winner, prob2 = simulate_game(model2, afc_wc2, afc_wc3, team_stats, elo_dict)
     
-    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc_sorted[-1]}", 'winner': afc_div1_winner, 'probability': prob1})
-    result['divisional_results'].append({'matchup': f"{afc_wc_sorted[0]} vs {afc_wc_sorted[1]}", 'winner': afc_div2_winner, 'probability': prob2})
+    # Sanity check
+    div_teams = [afc_wc1, afc_wc2, afc_wc3, afc_seeds[1]]
+    assert len(div_teams) == len(set(div_teams)), "Duplicate teams in AFC divisional round"
     
-    # NFC Divisional
-    nfc_wc_seed_map = {nfc_seeds[s]: s for s in [2, 3, 4, 5, 6, 7]}
-    nfc_wc_sorted = sorted(nfc_wc_winners, key=lambda t: nfc_wc_seed_map.get(t, 99))
+    result['divisional_results'].append({'matchup': f"{afc_seeds[1]} vs {afc_wc1}", 'winner': afc_div1_winner, 'probability': prob1})
+    result['divisional_results'].append({'matchup': f"{afc_wc2} vs {afc_wc3}", 'winner': afc_div2_winner, 'probability': prob2})
     
-    # Fill divisional round slots with WC winners (before simulation)
-    result['bracket_slots']['nfc_div_win_1'] = nfc_wc_sorted[0]
-    result['bracket_slots']['nfc_div_win_2'] = nfc_wc_sorted[1]
-    result['bracket_slots']['nfc_div_win_3'] = nfc_wc_sorted[2]
-    result['bracket_slots']['nfc_div_win_4'] = nfc_seeds[1]
+    # NFC Divisional: Preserve WC matchup lineage
+    nfc_wc1 = nfc_wc_winners[0]  # 2v7 winner
+    nfc_wc2 = nfc_wc_winners[1]  # 3v6 winner
+    nfc_wc3 = nfc_wc_winners[2]  # 4v5 winner
     
-    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc_sorted[-1], team_stats, elo_dict)
-    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc_sorted[0], nfc_wc_sorted[1], team_stats, elo_dict)
+    # Fill divisional round slots based on matchup lineage
+    result['bracket_slots']['nfc_div_win_1'] = nfc_wc1
+    result['bracket_slots']['nfc_div_win_2'] = nfc_seeds[1]
+    result['bracket_slots']['nfc_div_win_3'] = nfc_wc2
+    result['bracket_slots']['nfc_div_win_4'] = nfc_wc3
     
-    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc_sorted[-1]}", 'winner': nfc_div1_winner, 'probability': prob3})
-    result['divisional_results'].append({'matchup': f"{nfc_wc_sorted[0]} vs {nfc_wc_sorted[1]}", 'winner': nfc_div2_winner, 'probability': prob4})
+    # Divisional games: preserve bracket structure
+    nfc_div1_winner, prob3 = simulate_game(model2, nfc_seeds[1], nfc_wc1, team_stats, elo_dict)
+    nfc_div2_winner, prob4 = simulate_game(model2, nfc_wc2, nfc_wc3, team_stats, elo_dict)
+    
+    # Sanity check
+    div_teams_nfc = [nfc_wc1, nfc_wc2, nfc_wc3, nfc_seeds[1]]
+    assert len(div_teams_nfc) == len(set(div_teams_nfc)), "Duplicate teams in NFC divisional round"
+    
+    result['divisional_results'].append({'matchup': f"{nfc_seeds[1]} vs {nfc_wc1}", 'winner': nfc_div1_winner, 'probability': prob3})
+    result['divisional_results'].append({'matchup': f"{nfc_wc2} vs {nfc_wc3}", 'winner': nfc_div2_winner, 'probability': prob4})
     
     # Simulate Conference Championships
     if progress_callback:
         progress_callback("Simulating Conference Championships...", "info")
     
-    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
-    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
+    # Fill conference championship slots with divisional winners (before simulating)
+
     
-    result['bracket_slots']['afc_conf_win_1'] = afc_champ
-    result['bracket_slots']['afc_conf_win_2'] = afc_div1_winner if afc_div1_winner != afc_champ else afc_div2_winner
-    result['bracket_slots']['nfc_conf_win_1'] = nfc_champ
-    result['bracket_slots']['nfc_conf_win_2'] = nfc_div1_winner if nfc_div1_winner != nfc_champ else nfc_div2_winner
+    result['bracket_slots']['afc_conf_win_1'] = afc_div1_winner
+
+    
+    result['bracket_slots']['afc_conf_win_2'] = afc_div2_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_1'] = nfc_div1_winner
+
+    
+    result['bracket_slots']['nfc_conf_win_2'] = nfc_div2_winner
+
+    
+    
+
+    
+    # Simulate conference championships
+
+    
+    afc_champ, afc_prob = simulate_game(model2, afc_div1_winner, afc_div2_winner, team_stats, elo_dict)
+
+    
+    nfc_champ, nfc_prob = simulate_game(model2, nfc_div1_winner, nfc_div2_winner, team_stats, elo_dict)
     
     result['conference_results']['AFC'] = {'winner': afc_champ, 'probability': afc_prob}
     result['conference_results']['NFC'] = {'winner': nfc_champ, 'probability': nfc_prob}

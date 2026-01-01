@@ -302,23 +302,41 @@ if st.session_state.flow == "predicting":
     afc_selected = []
     afc_team_seeds = {}  # For manual bracket: seed -> team name
     if manual_mode:
-        afc_keys = ["afc_bye", "afc_wild1", "afc_wild2", "afc_wild3", "afc_wild4", "afc_wild5", "afc_wild6"]
-        for i, key in enumerate(afc_keys):
+        # Map UI keys to actual playoff seeds
+        afc_key_to_seed = {
+            "afc_bye": 1,    # #1 seed gets bye
+            "afc_wild1": 2,  # Plays #7
+            "afc_wild2": 7,  # Plays #2
+            "afc_wild3": 3,  # Plays #6
+            "afc_wild4": 6,  # Plays #3
+            "afc_wild5": 4,  # Plays #5
+            "afc_wild6": 5   # Plays #4
+        }
+        for key, seed in afc_key_to_seed.items():
             val = st.session_state.get(key, "-- Choose a team --")
             if val and val != "-- Choose a team --":
                 afc_selected.append(val)
-                afc_team_seeds[i + 1] = val  # Seed 1 = bye, 2-7 = wild cards
+                afc_team_seeds[seed] = val
 
     # Get currently selected NFC teams
     nfc_selected = []
     nfc_team_seeds = {}  # For manual bracket: seed -> team name
     if manual_mode:
-        nfc_keys = ["nfc_bye", "nfc_wild1", "nfc_wild2", "nfc_wild3", "nfc_wild4", "nfc_wild5", "nfc_wild6"]
-        for i, key in enumerate(nfc_keys):
+        # Map UI keys to actual playoff seeds
+        nfc_key_to_seed = {
+            "nfc_bye": 1,    # #1 seed gets bye
+            "nfc_wild1": 2,  # Plays #7
+            "nfc_wild2": 7,  # Plays #2
+            "nfc_wild3": 3,  # Plays #6
+            "nfc_wild4": 6,  # Plays #3
+            "nfc_wild5": 4,  # Plays #5
+            "nfc_wild6": 5   # Plays #4
+        }
+        for key, seed in nfc_key_to_seed.items():
             val = st.session_state.get(key, "-- Choose a team --")
             if val and val != "-- Choose a team --":
                 nfc_selected.append(val)
-                nfc_team_seeds[i + 1] = val  # Seed 1 = bye, 2-7 = wild cards
+                nfc_team_seeds[seed] = val
 
     # Check if all teams are selected for manual mode
     all_afc_selected = len(afc_selected) == 7
